@@ -16,7 +16,9 @@ An ultra-low-latency market data feed handler written in modern C++ for parsing 
 
 ## Requirements
 - C++20 or later compiler (GCC, Clang, MSVC)
-- CMake 3.16+
+- CMake 3.28+
+
+## Dependencies
 - [Asio](https://think-async.com/Asio/) (or Boost.Asio)  
 - [spdlog](https://github.com/gabime/spdlog) (logging)
 - [GoogleTest](https://github.com/google/googletest) (testing)
@@ -26,8 +28,17 @@ An ultra-low-latency market data feed handler written in modern C++ for parsing 
 ```bash
 git clone https://github.com/harris2001/UltraLowLatencyFeedHandler.git
 cd UltraLowLatencyFeedHandler
+```
 
-./install.sh
+## Building
+```bash
+cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$BUILD_DIR" -j"$NUM_CORES"
+```
+
+## Run tests
+```bash
+ctest --test-dir "$BUILD_DIR" --output-on-failure
 ```
 
 Note: This code for this repository has been only tested on Linux.
