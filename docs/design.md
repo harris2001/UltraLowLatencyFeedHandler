@@ -17,6 +17,15 @@ The objective of this project is to develop a high-performance feed handler capa
    - Our event consumer will read from the ring buffer and process the messages.
    - We can then use these data for logging, analytics, or we can further forward them to another system for further processing.
 
+## Feed Handler Design:
+<b>Responsibilities:</b>
+- Receive binary UDP packets from a NASDAQ TotalView multicast channel.
+- Reconstruct message boundaries
+- Pass raw buffers to the parser without copying data.
+<b>Implementation Details:</b>
+- We will be using Boost.Asio for async UDP I/O.
+- We will be using an SPSC model (Single Producer Single Consumer) because we will be sending each thread we receive to one parser thread.
+
 ### Example ITCH 5.0 Message
 Here is an example of an Add Order message in ITCH format:
 ```
