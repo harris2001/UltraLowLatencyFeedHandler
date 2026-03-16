@@ -72,7 +72,7 @@ target_link_libraries(UltraLowLatencyFeedHandler
 add_library(asio INTERFACE)
 target_compile_options(asio INTERFACE ASIO_STANDALONE)
 target_include_directories(asio INTERFACE ${CMAKE_SOURCE_DIR}/asio/include)
-message("CMAKE_SOURCE_DIR          ${CMAKE_SOURCE_DIR}/asio/include")
+message("CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/asio/include")
 target_link_libraries(asio INTERFACE pthread)
 
 target_compile_options(UltraLowLatencyFeedHandler

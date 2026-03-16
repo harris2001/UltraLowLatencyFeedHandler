@@ -1,0 +1,2 @@
+# Purpose
+This directory contains code that is responsible for mapping market event data to a specific stock exchange. This allows for the same market event data to be used across multiple stock exchanges with minimum overhead.
