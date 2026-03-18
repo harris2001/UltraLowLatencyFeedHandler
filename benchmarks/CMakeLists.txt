@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.28)
+
+include(FetchContent)
+
+# Google Benchmark (for performance benchmarking)
+if(BUILD_BENCHMARKS)
+  FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.8.3
+    EXCLUDE_FROM_ALL
+  )
+  FetchContent_MakeAvailable(benchmark)
+
+  add_executable(ullfh_benchmarks main.cpp)
+  target_link_libraries(ullfh_benchmarks PRIVATE 
+    ullfh_core_impl
+    ullfh_network_impl
+    ullfh_protocols_impl
+    ullfh_pipeline_impl
+    benchmark::benchmark_main
+  )
+endif()

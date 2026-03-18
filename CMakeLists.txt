@@ -8,54 +8,55 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(FetchContent)
 
 ################
-# Dependencies #
+# Options      #
 ################
 
-# Asio (for networking)
-FetchContent_Declare(
-	asio
-	GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-	GIT_TAG master
-)
-FetchContent_MakeAvailable(asio)
-
-# spdlog (for logging)
-FetchContent_Declare(
-	spdlog
-	GIT_REPOSITORY https://github.com/gabime/spdlog.git
-	GIT_TAG v1.15.3 
-)
-FetchContent_MakeAvailable(spdlog)
-
-# Google Test (for unit testing)
 option(BUILD_TESTS "Enable testing" ON)
-if(BUILD_TESTS)
-  FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.14.0
-  )
-	# Prevent GoogleTest from overriding our compiler/linker options
-  set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-  set(BENCHMARK_DOWNLOAD_DEPENDENCIES OFF CACHE BOOL "" FORCE)
-
-  FetchContent_MakeAvailable(googletest)
-
-  enable_testing()
-endif()
-
-# Google Benchmark (for performance benchmarking)
 option(BUILD_BENCHMARKS "Enable benchmarks" ON)
-if(BUILD_BENCHMARKS)
-  set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-  set(BENCHMARK_DOWNLOAD_DEPENDENCIES OFF CACHE BOOL "" FORCE)
-  FetchContent_Declare(
-  	benchmark
-  	GIT_REPOSITORY https://github.com/google/benchmark.git
-  	GIT_TAG main
-  )
-  FetchContent_MakeAvailable(benchmark)
+
+##################
+# Build Presets  #
+##################
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG -flto")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 endif()
+
+##################
+# Modules        #
+##################
+
+# Add source subdirectories
+add_subdirectory(src/core)
+add_subdirectory(src/network)
+add_subdirectory(src/protocols)
+add_subdirectory(src/pipeline)
+
+# Core module
+add_library(ullfh_core INTERFACE)
+target_include_directories(ullfh_core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/core)
+target_compile_features(ullfh_core INTERFACE cxx_std_20)
+target_link_libraries(ullfh_core INTERFACE ullfh_core_impl)
+
+# Network module
+add_library(ullfh_network INTERFACE)
+target_include_directories(ullfh_network INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/network)
+target_compile_features(ullfh_network INTERFACE cxx_std_20)
+target_link_libraries(ullfh_network INTERFACE ullfh_network_impl)
+
+# Protocols module
+add_library(ullfh_protocols INTERFACE)
+target_include_directories(ullfh_protocols INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/protocols)
+target_compile_features(ullfh_protocols INTERFACE cxx_std_20)
+target_link_libraries(ullfh_protocols INTERFACE ullfh_protocols_impl)
+
+# Pipeline module
+add_library(ullfh_pipeline INTERFACE)
+target_include_directories(ullfh_pipeline INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/pipeline)
+target_compile_features(ullfh_pipeline INTERFACE cxx_std_20)
+target_link_libraries(ullfh_pipeline INTERFACE ullfh_pipeline_impl)
 
 ###############
 # Main Target #
@@ -66,15 +67,21 @@ add_executable(UltraLowLatencyFeedHandler
 )
 
 target_link_libraries(UltraLowLatencyFeedHandler
-  PRIVATE spdlog::spdlog
+  PRIVATE ullfh_core
 )
-
-add_library(asio INTERFACE)
-target_compile_options(asio INTERFACE ASIO_STANDALONE)
-target_include_directories(asio INTERFACE ${CMAKE_SOURCE_DIR}/asio/include)
-message("CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/asio/include")
-target_link_libraries(asio INTERFACE pthread)
 
 target_compile_options(UltraLowLatencyFeedHandler
   PRIVATE -Wall -Wextra -Wpedantic -Werror
 )
+
+######################
+# Tests & Benchmarks #
+######################
+
+if(BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
