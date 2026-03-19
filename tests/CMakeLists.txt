@@ -13,9 +13,12 @@ if(BUILD_TESTS)
   FetchContent_MakeAvailable(googletest)
   enable_testing()
 
-  add_executable(ullfh_tests main.cpp)
+  add_executable(ullfh_tests 
+    main.cpp
+    core/types_test.cpp
+  )
   target_link_libraries(ullfh_tests PRIVATE 
-    ullfh_core_impl
+    ullfh_core
     GTest::gtest_main
   )
   add_test(NAME ullfh_tests COMMAND ullfh_tests)

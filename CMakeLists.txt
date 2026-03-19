@@ -25,6 +25,19 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 ##################
+# Dependencies   #
+##################
+
+# spdlog for logging
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.15.3
+  EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(spdlog)
+
+##################
 # Modules        #
 ##################
 
@@ -37,7 +50,7 @@ function(add_header_only_library name deps)
     endif()
 endfunction()
 
-add_header_only_library(ullfh_core "")
+add_header_only_library(ullfh_core "spdlog::spdlog")
 add_header_only_library(ullfh_network "")
 add_header_only_library(ullfh_protocols ullfh_core)
 add_header_only_library(ullfh_pipeline ullfh_core)
