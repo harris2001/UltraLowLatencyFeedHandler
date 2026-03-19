@@ -28,35 +28,22 @@ endif()
 # Modules        #
 ##################
 
-# Add source subdirectories
-add_subdirectory(src/core)
-add_subdirectory(src/network)
-add_subdirectory(src/protocols)
-add_subdirectory(src/pipeline)
+function(add_header_only_library name deps)
+    add_library(${name} INTERFACE)
+    target_include_directories(${name} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_compile_features(${name} INTERFACE cxx_std_20)
+    if(deps)
+        target_link_libraries(${name} INTERFACE ${deps})
+    endif()
+endfunction()
 
-# Core module
-add_library(ullfh_core INTERFACE)
-target_include_directories(ullfh_core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/core)
-target_compile_features(ullfh_core INTERFACE cxx_std_20)
-target_link_libraries(ullfh_core INTERFACE ullfh_core_impl)
+add_header_only_library(ullfh_core "")
+add_header_only_library(ullfh_network "")
+add_header_only_library(ullfh_protocols ullfh_core)
+add_header_only_library(ullfh_pipeline ullfh_core)
 
-# Network module
-add_library(ullfh_network INTERFACE)
-target_include_directories(ullfh_network INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/network)
-target_compile_features(ullfh_network INTERFACE cxx_std_20)
-target_link_libraries(ullfh_network INTERFACE ullfh_network_impl)
-
-# Protocols module
-add_library(ullfh_protocols INTERFACE)
-target_include_directories(ullfh_protocols INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/protocols)
-target_compile_features(ullfh_protocols INTERFACE cxx_std_20)
-target_link_libraries(ullfh_protocols INTERFACE ullfh_protocols_impl)
-
-# Pipeline module
-add_library(ullfh_pipeline INTERFACE)
-target_include_directories(ullfh_pipeline INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/pipeline)
-target_compile_features(ullfh_pipeline INTERFACE cxx_std_20)
-target_link_libraries(ullfh_pipeline INTERFACE ullfh_pipeline_impl)
+# Add source subdirectories (Phase 2: header-only, src will be populated in later phases)
+# add_subdirectory(src)
 
 ###############
 # Main Target #

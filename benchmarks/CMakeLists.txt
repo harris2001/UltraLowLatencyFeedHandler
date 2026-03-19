@@ -14,10 +14,10 @@ if(BUILD_BENCHMARKS)
 
   add_executable(ullfh_benchmarks main.cpp)
   target_link_libraries(ullfh_benchmarks PRIVATE 
-    ullfh_core_impl
-    ullfh_network_impl
-    ullfh_protocols_impl
-    ullfh_pipeline_impl
+    ullfh_core
+    ullfh_network
+    ullfh_protocols
+    ullfh_pipeline
     benchmark::benchmark_main
   )
 endif()
