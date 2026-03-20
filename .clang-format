@@ -3,5 +3,5 @@ IndentWidth: 4
 ColumnLimit: 120
 AllowShortIfStatementsOnASingleLine: false
 SortIncludes: true
-SpaceBeforeTrailingComments: 2
+SpacesBeforeTrailingComments: 2
 NamespaceIndentation: None
