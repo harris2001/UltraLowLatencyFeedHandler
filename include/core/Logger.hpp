@@ -18,6 +18,7 @@ class Logger {
      *
      * @param name        logger name (default: "ullfh")
      * @param level       log level (default: info)
+     *                              (options: trace < debug < info < warn < error < critical < off) 
      */
     static void init(const std::string& name = "ullfh",
                      spdlog::level::level_enum level = spdlog::level::info) noexcept {
@@ -52,8 +53,14 @@ class Logger {
      * Shutdown and flush all loggers.
      */
     static void shutdown() noexcept {
+        get()->flush();
         spdlog::shutdown();
     }
+
+   private:
+    // Private constructor to prevent instantiation
+    Logger() = delete;
+    ~Logger() = delete;
 };
 
 }  // namespace ullfh::core

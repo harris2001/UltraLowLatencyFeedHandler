@@ -27,16 +27,15 @@ enum class ErrorCode : uint8_t {
 #undef X
 };
 
-inline std::string_view error_string(ErrorCode code) noexcept {
-    switch (code) {
-#define X(name, code, msg) \
-    case ErrorCode::name:  \
-        return msg;
-        ULLFH_ERROR_CODES(X)
+inline constexpr std::string_view error_messages[] = {
+#define X(name, code, msg) msg,
+    ULLFH_ERROR_CODES(X)
 #undef X
-        default:
-            return "Unknown error";
-    }
+};
+
+inline std::string_view error_string(ErrorCode code) noexcept {
+    const auto index = static_cast<size_t>(code);
+    return (index < std::size(error_messages)) ? error_messages[index] : "Unknown error";
 }
 
 }  // namespace ullfh::core
