@@ -1,28 +1,28 @@
 #pragma once
 
+#include <array>
+#include <cmath>
 #include <cstdint>
 #include <type_traits>
-#include <cmath>
 
 namespace ullfh::protocols::itch {
-
 
 /**
  * Common header present in every ITCH 5.0 message (offsets 0–10).
  */
 #pragma pack(push, 1)
 struct MessageHeader {
-    char     message_type;     // Offset  0, len 1: message type identifier
+    char message_type;         // Offset  0, len 1: message type identifier
     uint16_t stock_locate;     // Offset  1, len 2
     uint16_t tracking_number;  // Offset  3, len 2: internal to NASDAQ
-    uint8_t  timestamp[6];     // Offset  5, len 6: nanoseconds since midnight
+    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<MessageHeader>);
 static_assert(sizeof(MessageHeader) == 11);
 
-enum EventCode : char {
+enum class EventCode : char {
     START_OF_MESSAGES = 'O',
     START_OF_SYSTEM_HOURS = 'S',
     START_OF_MARKET_HOURS = 'Q',
@@ -36,8 +36,8 @@ enum EventCode : char {
  */
 #pragma pack(push, 1)
 struct SystemEventMessage {
-    MessageHeader header;      // Offsets 0–10
-    EventCode event_code;      // Offset 11, len  1: see EventCode enum
+    MessageHeader header;  // Offsets 0–10
+    EventCode event_code;  // Offset 11, len  1: see EventCode enum class
 };
 #pragma pack(pop)
 
@@ -51,7 +51,7 @@ static_assert(sizeof(SystemEventMessage) == 12);
 /*
  * Indicates Listing market or listing market tier for the issue.
  */
-enum MarketCategory : char {
+enum class MarketCategory : char {
     NASDAQ_GLOBAL_SELECT = 'Q',
     NASDAQ_GLOBAL = 'G',
     NASDAQ_CAPITAL_MARKET = 'S',
@@ -64,9 +64,9 @@ enum MarketCategory : char {
 };
 
 /*
- * Shows when the NASDAQ-listed issue is NOT in compliance with Nasdaq continued listing requirements 
+ * Shows when the NASDAQ-listed issue is NOT in compliance with Nasdaq continued listing requirements
  */
-enum FSI : char {
+enum class FSI : char {
     DEFICIENT = 'D',
     DELINQUENT = 'E',
     BANKRUPT = 'Q',
@@ -81,9 +81,9 @@ enum FSI : char {
 };
 
 /*
- * Yes / No indicator 
+ * Yes / No indicator
  */
-enum Yes_No : char {
+enum class YesNo : char {
     YES = 'Y',
     NO = 'N',
     NOT_AVAILABLE = ' '
@@ -92,7 +92,7 @@ enum Yes_No : char {
 /*
  * Appendix D - Issue Classification Values
  */
-enum IssueClassification : char {
+enum class IssueClassification : char {
     AMERICAN_DEPOSITARY_SHARE = 'A',
     BOND = 'B',
     COMMON_STOCK = 'C',
@@ -114,7 +114,7 @@ enum IssueClassification : char {
 /*
  * Denotes if an issue or quoting participant  record is set up in a NASDAQ production environment or test environment.
  */
-enum Authenticity : char {
+enum class Authenticity : char {
     PRODUCTION = 'P',
     TEST = 'T'
 };
@@ -122,7 +122,7 @@ enum Authenticity : char {
 /*
  * Indicates the LULD reference price tier for a given issue.
  */
-enum Tier : char {
+enum class Tier : char {
     TIER_1 = '1',
     TIER_2 = '2',
     NOT_APPLICABLE = ' '
@@ -133,24 +133,24 @@ enum Tier : char {
  */
 #pragma pack(push, 1)
 struct StockDirectoryMessage {
-    MessageHeader header;                           // Offsets 0–10
-    char stock[8];                                  // Offset 11, len  8
-    MarketCategory market_category;                 // Offset 19, len  1: see MarketCategory enum 
-    FSI financial_status_indicator;                 // Offset 20, len  1: see FSI enum
-    uint32_t round_lot_size;                        // Offset 21, len  4: number of shares in a round lot
-    Yes_No round_lots_only;                         // Offset 25, len  1: Yes => Only round lots are allowed
-                                                    //                    No => Odd and mixed lots are allowed 
-    IssueClassification issue_classification;       // Offset 26, len  1: see IssueClassification enum
-    char issue_sub_type[2];                         // Offset 27, len  2: 2-char alpha
-    Authenticity authenticity;                      // Offset 29, len  1: see Authenticity enum
-    Yes_No short_sale_threshold_indicator;          // Offset 30, len  1: Yes => Restricted under SEC Rule 203(b)(3)
-                                                    //                    No => Not restricted 
-    Yes_No ipo_flag;                                // Offset 31, len  1: Yes => New IPO, No => Not new 
-    Tier luld_reference_price_tier;                 // Offset 32, len  1: see Tier enum 
-    Yes_No etp_flag;                                // Offset 33, len  1: Yes => ETP, No => Not ETP
-    uint32_t etp_leverage_factor;                   // Offset 34, len  4: integral relationship of the ETP to the 
-                                                    //                    underlying index (rounded to the nearest int) 
-    Yes_No inverse_indicator;                       // Offset 38, len  1: Yes => Inverse, No => Not Inverse
+    MessageHeader header;                       // Offsets 0–10
+    char stock[8];                              // Offset 11, len  8
+    MarketCategory market_category;             // Offset 19, len  1: see MarketCategory enum class
+    FSI financial_status_indicator;             // Offset 20, len  1: see FSI enum class
+    uint32_t round_lot_size;                    // Offset 21, len  4: number of shares in a round lot
+    YesNo round_lots_only;                      // Offset 25, len  1: Yes => Only round lots are allowed
+                                                //                    No => Odd and mixed lots are allowed
+    IssueClassification issue_classification;   // Offset 26, len  1: see IssueClassification enum class
+    char issue_sub_type[2];                     // Offset 27, len  2: 2-char alpha
+    Authenticity authenticity;                  // Offset 29, len  1: see Authenticity enum class
+    YesNo short_sale_threshold_indicator;       // Offset 30, len  1: Yes => Restricted under SEC Rule 203(b)(3)
+                                                //                    No => Not restricted
+    YesNo ipo_flag;                             // Offset 31, len  1: Yes => New IPO, No => Not new
+    Tier luld_reference_price_tier;             // Offset 32, len  1: see Tier enum class
+    YesNo etp_flag;                             // Offset 33, len  1: Yes => ETP, No => Not ETP
+    uint32_t etp_leverage_factor;               // Offset 34, len  4: integral relationship of the ETP to the
+                                                //                    underlying index (rounded to the nearest int)
+    YesNo inverse_indicator;                    // Offset 38, len  1: Yes => Inverse, No => Not Inverse
 };
 #pragma pack(pop)
 
@@ -160,7 +160,7 @@ static_assert(sizeof(StockDirectoryMessage) == 39);
 /*
  * Indicates the current trading state of a stock.
  */
-enum TradingState : char {
+enum class TradingState : char {
     HALTED = 'H',
     PAUSED = 'P',
     QUOTATION_ONLY = 'Q',
@@ -235,19 +235,18 @@ static_assert(
  */
 #pragma pack(push, 1)
 struct StockTradingActionMessage {
-    MessageHeader header;       // Offsets 0–10
-    char stock[8];              // Offset 11, len 8
-    TradingState trading_state; // Offset 19, len 1: see TradingState enum
-    char reserved;              // Offset 20, len 1
-    Reason reason;              // Offset 21, len 4: see TradingActionReason namespace
+    MessageHeader header;        // Offsets 0–10
+    char stock[8];               // Offset 11, len 8
+    TradingState trading_state;  // Offset 19, len 1: see TradingState enum class
+    char reserved;               // Offset 20, len 1
+    Reason reason;               // Offset 21, len 4: see TradingActionReason namespace
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<StockTradingActionMessage>);
 static_assert(sizeof(StockTradingActionMessage) == 25);
 
-
-enum PriceTest : char {
+enum class PriceTest : char {
     NO_PRICE_TEST = '0',
     PRICE_TEST_RESTRICTION_IN_EFFECT_INTRA_DAY_PRICE_DROP = '1',
     PRICE_TEST_RESTRICTION_REMAINS_IN_EFFECT = '2'
@@ -258,21 +257,21 @@ enum PriceTest : char {
  */
 #pragma pack(push, 1)
 struct RegSHOShortSalePriceTestRestrictedMessage {
-    MessageHeader header;           // Offsets 0–10
-    char stock[8];                  // Offset 11, len 8
-    PriceTest regsho_action;        // Offset 19, len 1
+    MessageHeader header;     // Offsets 0–10
+    char stock[8];            // Offset 11, len 8
+    PriceTest regsho_action;  // Offset 19, len 1
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<RegSHOShortSalePriceTestRestrictedMessage>);
 static_assert(sizeof(RegSHOShortSalePriceTestRestrictedMessage) == 20);
 
-enum IsPrimary : char {
+enum class IsPrimary : char {
     PRIMARY = 'Y',
     NON_PRIMARY = 'N'
 };
 
-enum MarketMakerMode : char {
+enum class MarketMakerMode : char {
     NORMAL = 'N',
     PASSIVE = 'P',
     SYNDICATE = 'S',
@@ -280,7 +279,7 @@ enum MarketMakerMode : char {
     PENALTY = 'L'
 };
 
-enum MarketParticipantState : char {
+enum class MarketParticipantState : char {
     ACTIVE = 'A',
     EXCUSED_OR_WITHDRAWN = 'E',
     WITHDRAWN = 'W',
@@ -294,12 +293,12 @@ enum MarketParticipantState : char {
  */
 #pragma pack(push, 1)
 struct MarketParticipantPositionMessage {
-    MessageHeader header;                               // Offsets 0–10
-    char mpid[4];                                       // Offset 11, len 4: market participant identifier
-    char stock[8];                                      // Offset 15, len 8
-    IsPrimary primary_market_maker;                     // Offset 23, len 1: see IsPrimary enum 
-    MarketMakerMode market_maker_mode;                  // Offset 24, len 1: see MarketMakerMode enum
-    MarketParticipantState market_participant_state;    // Offset 25, len 1: see MarketParticipantState enum
+    MessageHeader header;                             // Offsets 0–10
+    char mpid[4];                                     // Offset 11, len 4: market participant identifier
+    char stock[8];                                    // Offset 15, len 8
+    IsPrimary primary_market_maker;                   // Offset 23, len 1: see IsPrimary enum class
+    MarketMakerMode market_maker_mode;                // Offset 24, len 1: see MarketMakerMode enum class
+    MarketParticipantState market_participant_state;  // Offset 25, len 1: see MarketParticipantState enum class
 };
 #pragma pack(pop)
 
@@ -308,14 +307,14 @@ static_assert(sizeof(MarketParticipantPositionMessage) == 26);
 
 /**
  * A strongly-typed wrapper around a raw integer price field.
- * 
+ *
  * @tparam T : Underlying integer type (e.g. uint32_t, uint64_t)
  * @tparam Precision : Number of decimal places (4 or 8 per ITCH spec)
- * 
+ *
  * Wire layout is identical to T — no extra bytes.
  * Precision is a compile-time constant; no runtime storage needed.
  */
-template<typename T, int Precision>
+template <typename T, int Precision>
 struct Price {
     T raw;  // Raw integer value as received on the wire
 
@@ -351,11 +350,7 @@ struct MWCBDeclineLevelMessage {
 static_assert(std::is_trivially_copyable_v<MWCBDeclineLevelMessage>);
 static_assert(sizeof(MWCBDeclineLevelMessage) == 35);
 
-enum Levels : char {
-    LEVEL_1 = '1',
-    LEVEL_2 = '2',
-    LEVEL_3 = '3'
-};
+enum class Levels : char { LEVEL_1 = '1', LEVEL_2 = '2', LEVEL_3 = '3' };
 
 /**
  * MWCB Status Message (Section 1.2.5.2) – Type 'W'
@@ -363,29 +358,27 @@ enum Levels : char {
  */
 #pragma pack(push, 1)
 struct MWCBStatusMessage {
-    MessageHeader header;      // Offsets 0–10
-    Levels breached_level;     // Offset 11, len 1: see Levels enum 
+    MessageHeader header;   // Offsets 0–10
+    Levels breached_level;  // Offset 11, len 1: see Levels enum class
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<MWCBStatusMessage>);
 static_assert(sizeof(MWCBStatusMessage) == 12);
 
-enum IPOQuotationReleaseQualifier : char {
-    ANTICIPATED = 'A',
-    IPO_CANCELLED = 'C'
-};
+enum class IPOQuotationReleaseQualifier : char { ANTICIPATED = 'A', IPO_CANCELLED = 'C' };
 /**
  * IPO Quoting Period Update (Section 1.2.6) – Type 'K'
  * Indicates anticipated IPO quotation release time and price.
  */
 #pragma pack(push, 1)
 struct IPOQuotingPeriodUpdateMessage {
-    MessageHeader header;                                           // Offsets 0–10
-    char stock[8];                                                  // Offset 11, len 8
-    uint32_t ipo_quotation_release_time;                            // Offset 19, len 4: seconds since midnight
-    IPOQuotationReleaseQualifier ipo_quotation_release_qualifier;   // Offset 23, len 1: see IPOQuotationReleaseQualifier enum
-    Price4 ipo_price;                                               // Offset 24, len 4: Price 4 
+    MessageHeader header;                 // Offsets 0–10
+    char stock[8];                        // Offset 11, len 8
+    uint32_t ipo_quotation_release_time;  // Offset 19, len 4: seconds since midnight
+    IPOQuotationReleaseQualifier
+        ipo_quotation_release_qualifier;  // Offset 23, len 1: see IPOQuotationReleaseQualifier enum class
+    Price4 ipo_price;                     // Offset 24, len 4: Price 4
 };
 #pragma pack(pop)
 
@@ -399,28 +392,21 @@ static_assert(sizeof(IPOQuotingPeriodUpdateMessage) == 28);
  */
 #pragma pack(push, 1)
 struct LULDAuctionCollarMessage {
-    MessageHeader header;                       // Offsets 0–10
-    char stock[8];                              // Offset 11, len 8
-    Price4 auction_collar_reference_price;      // Offset 19, len 4: Price 4
-    Price4 upper_auction_collar_price;          // Offset 23, len 4: Price 4
-    Price4 lower_auction_collar_price;          // Offset 27, len 4: Price 4
-    uint32_t auction_collar_extension;          // Offset 31, len 4: number of Auction Collar Extensions
+    MessageHeader header;                   // Offsets 0–10
+    char stock[8];                          // Offset 11, len 8
+    Price4 auction_collar_reference_price;  // Offset 19, len 4: Price 4
+    Price4 upper_auction_collar_price;      // Offset 23, len 4: Price 4
+    Price4 lower_auction_collar_price;      // Offset 27, len 4: Price 4
+    uint32_t auction_collar_extension;      // Offset 31, len 4: number of Auction Collar Extensions
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<LULDAuctionCollarMessage>);
 static_assert(sizeof(LULDAuctionCollarMessage) == 35);
 
-enum MarketCode : char {
-    NASDAQ = 'Q',
-    BX = 'B',
-    PSX = 'X'
-};
+enum class MarketCode : char { NASDAQ = 'Q', BX = 'B', PSX = 'X' };
 
-enum OperationalHaltAction : char {
-    OPERATIONALLY_HALTED = 'H',
-    TRADING_RESUMED = 'T'
-};
+enum class OperationalHaltAction : char { OPERATIONALLY_HALTED = 'H', TRADING_RESUMED = 'T' };
 /**
  * Operational Halt Message (Section 1.2.8) – Type 'h'
  * Indicates an operational halt or trading resumption for a Nasdaq-listed security.
@@ -429,8 +415,8 @@ enum OperationalHaltAction : char {
 struct OperationalHaltMessage {
     MessageHeader header;                           // Offsets 0–10
     char stock[8];                                  // Offset 11, len 8
-    MarketCode market_code;                         // Offset 19, len 1: see MarketCode enum
-    OperationalHaltAction operational_halt_action;  // Offset 20, len 1: see OperationalHaltAction enum
+    MarketCode market_code;                         // Offset 19, len 1: see MarketCode enum class
+    OperationalHaltAction operational_halt_action;  // Offset 20, len 1: see OperationalHaltAction enum class
 };
 #pragma pack(pop)
 
@@ -441,22 +427,19 @@ static_assert(sizeof(OperationalHaltMessage) == 21);
 // Add Order Messages (Section 1.3)
 // ============================================================================
 
-enum BuySellIndicator : char {
-    BUY = 'B',
-    SELL = 'S'
-};
+enum class BuySellIndicator : char { BUY = 'B', SELL = 'S' };
 /**
  * Add Order – No MPID Attribution (Section 1.3.1) – Type 'A'
  * Adds a new order to the limit order book.
  */
 #pragma pack(push, 1)
 struct AddOrderMessage {
-    MessageHeader header;                   // Offsets 0–10
-    uint64_t order_reference;               // Offset 11, len 8: unique order reference number
-    BuySellIndicator buy_sell_indicator;    // Offset 19, len 1: see BuySellIndicator enum 
-    uint32_t shares;                        // Offset 20, len 4
-    char stock[8];                          // Offset 24, len 8
-    Price4 price;                           // Offset 32, len 4: Price4 
+    MessageHeader header;                 // Offsets 0–10
+    uint64_t order_reference;             // Offset 11, len 8: unique order reference number
+    BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
+    uint32_t shares;                      // Offset 20, len 4
+    char stock[8];                        // Offset 24, len 8
+    Price4 price;                         // Offset 32, len 4: Price4
 };
 #pragma pack(pop)
 
@@ -468,18 +451,254 @@ static_assert(sizeof(AddOrderMessage) == 36);
  */
 #pragma pack(push, 1)
 struct AddOrderWithMPIDMessage {
-    MessageHeader header;                   // Offsets 0–10
-    uint64_t order_reference;               // Offset 11, len 8
-    BuySellIndicator buy_sell_indicator;    // Offset 19, len 1: see BuySellIndicator enum
-    uint32_t shares;                        // Offset 20, len 4
-    char stock[8];                          // Offset 24, len 8
-    Price4 price;                           // Offset 32, len 4: Price4 
-    char attribution[4];                    // Offset 36, len 4: MPID of the entered order
+    MessageHeader header;                 // Offsets 0–10
+    uint64_t order_reference;             // Offset 11, len 8
+    BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
+    uint32_t shares;                      // Offset 20, len 4
+    char stock[8];                        // Offset 24, len 8
+    Price4 price;                         // Offset 32, len 4: Price4
+    char attribution[4];                  // Offset 36, len 4: MPID of the entered order
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<AddOrderWithMPIDMessage>);
 static_assert(sizeof(AddOrderWithMPIDMessage) == 40);
+
+// ============================================================================
+// Modify Order Messages (Section 1.4)
+// ============================================================================
+
+/**
+ * Order Executed Message (Section 1.4.1) – Type 'E'
+ * Indicates a visible order on the book was executed in part or in full.
+ */
+#pragma pack(push, 1)
+struct OrderExecutedMessage {
+    MessageHeader header;      // Offsets 0–10
+    uint64_t order_reference;  // Offset 11, len 8
+    uint32_t executed_shares;  // Offset 19, len 4
+    uint64_t match_number;     // Offset 23, len 8: unique match identifier
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OrderExecutedMessage>);
+static_assert(sizeof(OrderExecutedMessage) == 31);
+
+enum class Printable : char { PRINTABLE = 'Y', NON_PRINTABLE = 'N' };
+/**
+ * Order Executed With Price Message (Section 1.4.2) – Type 'C'
+ * Like 'E' but used when the execution price differs from the order price.
+ */
+#pragma pack(push, 1)
+struct OrderExecutedWithPriceMessage {
+    MessageHeader header;      // Offsets 0–10
+    uint64_t order_reference;  // Offset 11, len 8
+    uint32_t executed_shares;  // Offset 19, len 4
+    uint64_t match_number;     // Offset 23, len 8
+    Printable printable;       // Offset 31, len 1: see Printable enum class
+    Price4 execution_price;    // Offset 32, len 4: Price4
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OrderExecutedWithPriceMessage>);
+static_assert(sizeof(OrderExecutedWithPriceMessage) == 36);
+
+/**
+ * Order Cancel Message (Section 1.4.3) – Type 'X'
+ * Partial cancellation of a visible order.
+ */
+#pragma pack(push, 1)
+struct OrderCancelMessage {
+    MessageHeader header;       // Offsets 0–10
+    uint64_t order_reference;   // Offset 11, len 8
+    uint32_t cancelled_shares;  // Offset 19, len 4: number of shares removed
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OrderCancelMessage>);
+static_assert(sizeof(OrderCancelMessage) == 23);
+
+/**
+ * Order Delete Message (Section 1.4.4) – Type 'D'
+ * Full removal of a visible order.
+ */
+#pragma pack(push, 1)
+struct OrderDeleteMessage {
+    MessageHeader header;      // Offsets 0–10
+    uint64_t order_reference;  // Offset 11, len 8
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OrderDeleteMessage>);
+static_assert(sizeof(OrderDeleteMessage) == 19);
+
+/**
+ * Order Replace Message (Section 1.4.5) – Type 'U'
+ * Replaces an existing visible order with a new one at a new price/quantity.
+ * The original order is implicitly cancelled.
+ */
+#pragma pack(push, 1)
+struct OrderReplaceMessage {
+    MessageHeader header;               // Offsets 0–10
+    uint64_t original_order_reference;  // Offset 11, len 8: reference of the order being replaced
+    uint64_t new_order_reference;       // Offset 19, len 8: reference of the replacement order
+    uint32_t shares;                    // Offset 27, len 4: new total display quantity
+    Price4 price;                       // Offset 31, len 4: Price4
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OrderReplaceMessage>);
+static_assert(sizeof(OrderReplaceMessage) == 35);
+
+// ============================================================================
+// Trade Messages (Section 1.5)
+// ============================================================================
+
+/**
+ * Trade Message – Non-Cross (Section 1.5.1) – Type 'P'
+ * Provides execution details for a trade that occurred on the Nasdaq Market Center that is not part of a cross.
+ */
+#pragma pack(push, 1)
+struct TradeMessage {
+    MessageHeader header;                 // Offsets 0–10
+    uint64_t order_reference;             // Offset 11, len 8: reference of the order that was matched
+    BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
+    uint32_t shares;                      // Offset 20, len 4
+    char stock[8];                        // Offset 24, len 8
+    Price4 price;                         // Offset 32, len 4: Price4
+    uint64_t match_number;                // Offset 36, len 8
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<TradeMessage>);
+static_assert(sizeof(TradeMessage) == 44);
+
+enum class CrossType : char { OPENING = 'O', CLOSING = 'C', IPO_HALTED = 'H', EXTENDED_TRADING_CLOSE = 'E' };
+
+/**
+ * Cross Trade Message (Section 1.5.2) – Type 'Q'
+ * Published for NASDAQ opening, closing, and IPO cross executions.
+ */
+#pragma pack(push, 1)
+struct CrossTradeMessage {
+    MessageHeader header;   // Offsets 0–10
+    uint64_t shares;        // Offset 11, len 8: number of shares matched in the cross
+    char stock[8];          // Offset 19, len 8
+    Price4 cross_price;     // Offset 27, len 4: Price4
+    uint64_t match_number;  // Offset 31, len 8
+    CrossType cross_type;   // Offset 39, len 1: see CrossType enum class
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<CrossTradeMessage>);
+static_assert(sizeof(CrossTradeMessage) == 40);
+
+/**
+ * Broken Trade / Order Execution Message (Section 1.5.3) – Type 'B'
+ * Signals that a previously published trade should be treated as cancelled.
+ */
+#pragma pack(push, 1)
+struct BrokenTradeMessage {
+    MessageHeader header;   // Offsets 0–10
+    uint64_t match_number;  // Offset 11, len 8: match number of the trade being broken
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<BrokenTradeMessage>);
+static_assert(sizeof(BrokenTradeMessage) == 19);
+
+// ============================================================================
+// Net Order Imbalance Indicator (Section 1.6)
+// ============================================================================
+
+enum class PriceVariationIndicator : char {
+    LESS_THAN_1_PERCENT = 'L',
+    BETWEEN_1_AND_1_99_PERCENT = '1',
+    BETWEEN_2_AND_2_99_PERCENT = '2',
+    BETWEEN_3_AND_3_99_PERCENT = '3',
+    BETWEEN_4_AND_4_99_PERCENT = '4',
+    BETWEEN_5_AND_5_99_PERCENT = '5',
+    BETWEEN_6_AND_6_99_PERCENT = '6',
+    BETWEEN_7_AND_7_99_PERCENT = '7',
+    BETWEEN_8_AND_8_99_PERCENT = '8',
+    BETWEEN_9_AND_9_99_PERCENT = '9',
+    BETWEEN_10_AND_10_99_PERCENT = 'A',
+    BETWEEN_20_AND_29_99_PERCENT = 'B',
+    GREATER_THAN_OR_EQUAL_TO_30_PERCENT = 'C',
+    CANNOT_BE_CALCULATED = ' '
+};
+
+enum class ImbalanceDirection : char { BUY = 'B', SELL = 'S', NO_IMBALANCE = 'N', INSUFFICIENT_ORDERS = 'O', PAUSED = 'P' };
+
+/**
+ * NOII Message (Section 1.6) – Type 'I'
+ * Disseminates order imbalance information in the pre-market and post-market
+ * periods and during the Nasdaq Opening Cross.
+ */
+#pragma pack(push, 1)
+struct NOIIMessage {
+    MessageHeader header;       // Offsets 0–10
+    uint64_t paired_shares;     // Offset 11, len  8: shares eligible to be matched at Current Reference Price
+    uint64_t imbalance_shares;  // Offset 19, len  8: shares not paired at Current Reference Price
+    ImbalanceDirection imbalance_direction;             // Offset 27, len  1: see ImbalanceDirection enum class
+    char stock[8];                                      // Offset 28, len  8
+    Price4 far_price;                                   // Offset 36, len  4: Price4
+    Price4 near_price;                                  // Offset 40, len  4: Price4
+    Price4 current_reference_price;                     // Offset 44, len  4: Price4
+    CrossType cross_type;                               // Offset 48, len  1: see CrossType enum class
+    PriceVariationIndicator price_variation_indicator;  // Offset 49, len  1: see PriceVariationIndicator enum class
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<NOIIMessage>);
+static_assert(sizeof(NOIIMessage) == 50);
+
+// ============================================================================
+// Retail Price Improvement Indicator (Section 1.7)
+// ============================================================================
+
+enum class Interest : char { RPI_ON_BUY = 'B', RPI_ON_SELL = 'S', RPI_ON_BOTH_SIDES = 'A', NO_RPI = 'N' };
+/**
+ * RPII Message (Section 1.7) – Type 'N'
+ * Identifies retail interest in a Nasdaq-listed security and the side(s) of the market.
+ */
+#pragma pack(push, 1)
+struct RPIIMessage {
+    MessageHeader header;    // Offsets 0–10
+    char stock[8];           // Offset 11, len 8
+    Interest interest_flag;  // Offset 19, len 1: see Interest enum class
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<RPIIMessage>);
+static_assert(sizeof(RPIIMessage) == 20);
+
+// ============================================================================
+// Direct Listing with Capital Raise Price Discovery Message (Section 1.8)
+// ============================================================================
+
+enum class OpenEligibilityStatus : char { NOT_ELIGIBLE = 'N', ELIGIBLE = 'Y' };
+
+/**
+ * Direct Listing with Capital Raise Price Discovery Message (Section 1.8) – Type 'O'
+ * Disseminated once per second after the DLCR volatility test has successfully passed.
+ */
+#pragma pack(push, 1)
+struct DLCRPriceDiscoveryMessage {
+    MessageHeader header;                           // Offsets 0–10
+    char stock[8];                                  // Offset 11, len 8: stock symbol, right padded with spaces
+    OpenEligibilityStatus open_eligibility_status;  // Offset 19, len 1: see OpenEligibilityStatus enum class
+    Price4 minimum_allowable_price;                 // Offset 20, len 4: 20% below Registration Statement Lower Price
+    Price4 maximum_allowable_price;                 // Offset 24, len 4: 80% above Registration Statement Highest Price
+    Price4 near_execution_price;                    // Offset 28, len 4: current reference price when DLCR volatility test passed
+    uint64_t near_execution_time;                   // Offset 32, len 8: time at which near execution price was set
+    Price4 lower_price_range_collar;                // Offset 40, len 4: Lower Auction Collar Threshold (10% below near execution price)
+    Price4 upper_price_range_collar;                // Offset 44, len 4: Upper Auction Collar Threshold (10% above near execution price)
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<DLCRPriceDiscoveryMessage>);
+static_assert(sizeof(DLCRPriceDiscoveryMessage) == 48);
 
 // ============================================================================
 // All messages must be trivially copyable for zero-copy parsing
