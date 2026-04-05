@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <cmath>
 
 namespace ullfh::protocols::itch {
 
@@ -304,6 +305,181 @@ struct MarketParticipantPositionMessage {
 
 static_assert(std::is_trivially_copyable_v<MarketParticipantPositionMessage>);
 static_assert(sizeof(MarketParticipantPositionMessage) == 26);
+
+/**
+ * A strongly-typed wrapper around a raw integer price field.
+ * 
+ * @tparam T : Underlying integer type (e.g. uint32_t, uint64_t)
+ * @tparam Precision : Number of decimal places (4 or 8 per ITCH spec)
+ * 
+ * Wire layout is identical to T — no extra bytes.
+ * Precision is a compile-time constant; no runtime storage needed.
+ */
+template<typename T, int Precision>
+struct Price {
+    T raw;  // Raw integer value as received on the wire
+
+    [[nodiscard]] double get() const noexcept {
+        constexpr double scale = [] {
+            double s = 1.0;
+            for (int i = 0; i < Precision; ++i) s *= 10.0;
+            return s;
+        }();
+        return static_cast<double>(raw) / scale;
+    }
+};
+static_assert(std::is_trivially_copyable_v<Price<uint32_t, 4>>);
+static_assert(std::is_trivially_copyable_v<Price<uint64_t, 8>>);
+static_assert(sizeof(Price<uint32_t, 4>) == sizeof(uint32_t));
+static_assert(sizeof(Price<uint64_t, 8>) == sizeof(uint64_t));
+
+using Price4 = Price<uint32_t, 4>;  // price × 10'000
+using Price8 = Price<uint64_t, 8>;  // price × 100'000'000
+
+/**
+ * MWCB Decline Level Message (Section 1.2.5.1) – Type 'V'
+ * Disseminates the daily MWCB halt threshold price levels.
+ */
+#pragma pack(push, 1)
+struct MWCBDeclineLevelMessage {
+    MessageHeader header;  // Offsets 0–10
+    Price8 level_1;        // Offset 11, len 8: Price 8
+    Price8 level_2;        // Offset 19, len 8: Price 8
+    Price8 level_3;        // Offset 27, len 8: Price 8
+};
+#pragma pack(pop)
+static_assert(std::is_trivially_copyable_v<MWCBDeclineLevelMessage>);
+static_assert(sizeof(MWCBDeclineLevelMessage) == 35);
+
+enum Levels : char {
+    LEVEL_1 = '1',
+    LEVEL_2 = '2',
+    LEVEL_3 = '3'
+};
+
+/**
+ * MWCB Status Message (Section 1.2.5.2) – Type 'W'
+ * Indicates that a Market-Wide Circuit Breaker decline level has been breached.
+ */
+#pragma pack(push, 1)
+struct MWCBStatusMessage {
+    MessageHeader header;      // Offsets 0–10
+    Levels breached_level;     // Offset 11, len 1: see Levels enum 
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<MWCBStatusMessage>);
+static_assert(sizeof(MWCBStatusMessage) == 12);
+
+enum IPOQuotationReleaseQualifier : char {
+    ANTICIPATED = 'A',
+    IPO_CANCELLED = 'C'
+};
+/**
+ * IPO Quoting Period Update (Section 1.2.6) – Type 'K'
+ * Indicates anticipated IPO quotation release time and price.
+ */
+#pragma pack(push, 1)
+struct IPOQuotingPeriodUpdateMessage {
+    MessageHeader header;                                           // Offsets 0–10
+    char stock[8];                                                  // Offset 11, len 8
+    uint32_t ipo_quotation_release_time;                            // Offset 19, len 4: seconds since midnight
+    IPOQuotationReleaseQualifier ipo_quotation_release_qualifier;   // Offset 23, len 1: see IPOQuotationReleaseQualifier enum
+    Price4 ipo_price;                                               // Offset 24, len 4: Price 4 
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<IPOQuotingPeriodUpdateMessage>);
+static_assert(sizeof(IPOQuotingPeriodUpdateMessage) == 28);
+
+/**
+ * LULD Auction Collar Message (Section 1.2.7) – Type 'J'
+ * Indicates the auction collar thresholds within which a stock may trade
+ * during a LULD trading pause.
+ */
+#pragma pack(push, 1)
+struct LULDAuctionCollarMessage {
+    MessageHeader header;                       // Offsets 0–10
+    char stock[8];                              // Offset 11, len 8
+    Price4 auction_collar_reference_price;      // Offset 19, len 4: Price 4
+    Price4 upper_auction_collar_price;          // Offset 23, len 4: Price 4
+    Price4 lower_auction_collar_price;          // Offset 27, len 4: Price 4
+    uint32_t auction_collar_extension;          // Offset 31, len 4: number of Auction Collar Extensions
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<LULDAuctionCollarMessage>);
+static_assert(sizeof(LULDAuctionCollarMessage) == 35);
+
+enum MarketCode : char {
+    NASDAQ = 'Q',
+    BX = 'B',
+    PSX = 'X'
+};
+
+enum OperationalHaltAction : char {
+    OPERATIONALLY_HALTED = 'H',
+    TRADING_RESUMED = 'T'
+};
+/**
+ * Operational Halt Message (Section 1.2.8) – Type 'h'
+ * Indicates an operational halt or trading resumption for a Nasdaq-listed security.
+ */
+#pragma pack(push, 1)
+struct OperationalHaltMessage {
+    MessageHeader header;                           // Offsets 0–10
+    char stock[8];                                  // Offset 11, len 8
+    MarketCode market_code;                         // Offset 19, len 1: see MarketCode enum
+    OperationalHaltAction operational_halt_action;  // Offset 20, len 1: see OperationalHaltAction enum
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<OperationalHaltMessage>);
+static_assert(sizeof(OperationalHaltMessage) == 21);
+
+// ============================================================================
+// Add Order Messages (Section 1.3)
+// ============================================================================
+
+enum BuySellIndicator : char {
+    BUY = 'B',
+    SELL = 'S'
+};
+/**
+ * Add Order – No MPID Attribution (Section 1.3.1) – Type 'A'
+ * Adds a new order to the limit order book.
+ */
+#pragma pack(push, 1)
+struct AddOrderMessage {
+    MessageHeader header;                   // Offsets 0–10
+    uint64_t order_reference;               // Offset 11, len 8: unique order reference number
+    BuySellIndicator buy_sell_indicator;    // Offset 19, len 1: see BuySellIndicator enum 
+    uint32_t shares;                        // Offset 20, len 4
+    char stock[8];                          // Offset 24, len 8
+    Price4 price;                           // Offset 32, len 4: Price4 
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<AddOrderMessage>);
+static_assert(sizeof(AddOrderMessage) == 36);
+
+/**
+ * Add Order – MPID Attribution (Section 1.3.2) – Type 'F'
+ */
+#pragma pack(push, 1)
+struct AddOrderWithMPIDMessage {
+    MessageHeader header;                   // Offsets 0–10
+    uint64_t order_reference;               // Offset 11, len 8
+    BuySellIndicator buy_sell_indicator;    // Offset 19, len 1: see BuySellIndicator enum
+    uint32_t shares;                        // Offset 20, len 4
+    char stock[8];                          // Offset 24, len 8
+    Price4 price;                           // Offset 32, len 4: Price4 
+    char attribution[4];                    // Offset 36, len 4: MPID of the entered order
+};
+#pragma pack(pop)
+
+static_assert(std::is_trivially_copyable_v<AddOrderWithMPIDMessage>);
+static_assert(sizeof(AddOrderWithMPIDMessage) == 40);
 
 // ============================================================================
 // All messages must be trivially copyable for zero-copy parsing
