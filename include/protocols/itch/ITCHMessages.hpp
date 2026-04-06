@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 namespace ullfh::protocols::itch {
@@ -112,6 +113,146 @@ enum class IssueClassification : char {
 };
 
 /*
+ * Appendix E – Issue Sub Type Values
+ * Wire format: 2 bytes, right-padded with space for single-character codes.
+ */
+enum class IssueSubTypeCode : uint8_t {
+    PREFERRED_TRUST_SECURITIES,              // A
+    ALPHA_INDEX_ETN,                         // AI
+    INDEX_BASED_DERIVATIVE,                  // B
+    COMMON_SHARES,                           // C
+    COMMODITY_BASED_TRUST_SHARES,            // CB
+    COMMODITY_FUTURES_TRUST_SHARES,          // CF
+    COMMODITY_LINKED_SECURITIES,             // CL
+    COMMODITY_INDEX_TRUST_SHARES,            // CM
+    COLLATERALIZED_MORTGAGE_OBLIGATION,      // CO
+    CURRENCY_TRUST_SHARES,                   // CT
+    COMMODITY_CURRENCY_LINKED_SECURITIES,    // CU
+    CURRENCY_WARRANTS,                       // CW
+    GLOBAL_DEPOSITARY_SHARES,                // D
+    ETF_PORTFOLIO_DEPOSITARY_RECEIPT,        // E
+    EQUITY_GOLD_SHARES,                      // EG
+    ETN_EQUITY_INDEX_LINKED_SECURITIES,      // EI
+    NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND, // EM
+    EXCHANGE_TRADED_NOTES,                   // EN
+    EQUITY_UNITS,                            // EU
+    HOLDRS,                                  // F
+    ETN_FIXED_INCOME_LINKED_SECURITIES,      // FI
+    ETN_FUTURES_LINKED_SECURITIES,           // FL
+    GLOBAL_SHARES,                           // G
+    ETF_INDEX_FUND_SHARES,                   // I
+    INTEREST_RATE,                           // IR
+    INDEX_WARRANT,                           // IW
+    INDEX_LINKED_EXCHANGEABLE_NOTES,         // IX
+    CORPORATE_BACKED_TRUST_SECURITY,         // J
+    CONTINGENT_LITIGATION_RIGHT,             // L
+    LIMITED_LIABILITY_COMPANY,               // LL
+    EQUITY_BASED_DERIVATIVE,                 // M
+    MANAGED_FUND_SHARES,                     // MF
+    ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES,// ML
+    MANAGED_TRUST_SECURITIES,                // MT
+    NY_REGISTRY_SHARES,                      // N
+    OPEN_ENDED_MUTUAL_FUND,                  // O
+    PRIVATELY_HELD_SECURITY,                 // P
+    POISON_PILL,                             // PP
+    PARTNERSHIP_UNITS,                       // PU
+    CLOSED_END_FUNDS,                        // Q
+    REG_S,                                   // R
+    COMMODITY_REDEEMABLE_COMMODITY_LINKED,   // RC
+    ETN_REDEEMABLE_FUTURES_LINKED,           // RF
+    REIT,                                    // RT
+    COMMODITY_REDEEMABLE_CURRENCY_LINKED,    // RU
+    SEED,                                    // S
+    SPOT_RATE_CLOSING,                       // SC
+    SPOT_RATE_INTRADAY,                      // SI
+    TRACKING_STOCK,                          // T
+    TRUST_CERTIFICATES,                      // TC
+    TRUST_UNITS,                             // TU
+    PORTAL,                                  // U
+    CONTINGENT_VALUE_RIGHT,                  // V
+    TRUST_ISSUED_RECEIPTS,                   // W
+    WORLD_CURRENCY_OPTION,                   // WC
+    TRUST,                                   // X
+    OTHER,                                   // Y
+    NOT_APPLICABLE,                          // Z
+    COUNT
+};
+
+/*
+ * 2-byte raw wire type for IssueSubType (single-char codes are right-padded with space).
+ */
+struct IssueSubType {
+    char code[2];
+    constexpr IssueSubType(char c0, char c1) : code{c0, c1} {}
+};
+static_assert(std::is_trivially_copyable_v<IssueSubType>);
+static_assert(sizeof(IssueSubType) == 2);
+
+constexpr IssueSubType issue_sub_type_table[] = {
+    {'A', ' '},  // PREFERRED_TRUST_SECURITIES
+    {'A', 'I'},  // ALPHA_INDEX_ETN
+    {'B', ' '},  // INDEX_BASED_DERIVATIVE
+    {'C', ' '},  // COMMON_SHARES
+    {'C', 'B'},  // COMMODITY_BASED_TRUST_SHARES
+    {'C', 'F'},  // COMMODITY_FUTURES_TRUST_SHARES
+    {'C', 'L'},  // COMMODITY_LINKED_SECURITIES
+    {'C', 'M'},  // COMMODITY_INDEX_TRUST_SHARES
+    {'C', 'O'},  // COLLATERALIZED_MORTGAGE_OBLIGATION
+    {'C', 'T'},  // CURRENCY_TRUST_SHARES
+    {'C', 'U'},  // COMMODITY_CURRENCY_LINKED_SECURITIES
+    {'C', 'W'},  // CURRENCY_WARRANTS
+    {'D', ' '},  // GLOBAL_DEPOSITARY_SHARES
+    {'E', ' '},  // ETF_PORTFOLIO_DEPOSITARY_RECEIPT
+    {'E', 'G'},  // EQUITY_GOLD_SHARES
+    {'E', 'I'},  // ETN_EQUITY_INDEX_LINKED_SECURITIES
+    {'E', 'M'},  // NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND
+    {'E', 'N'},  // EXCHANGE_TRADED_NOTES
+    {'E', 'U'},  // EQUITY_UNITS
+    {'F', ' '},  // HOLDRS
+    {'F', 'I'},  // ETN_FIXED_INCOME_LINKED_SECURITIES
+    {'F', 'L'},  // ETN_FUTURES_LINKED_SECURITIES
+    {'G', ' '},  // GLOBAL_SHARES
+    {'I', ' '},  // ETF_INDEX_FUND_SHARES
+    {'I', 'R'},  // INTEREST_RATE
+    {'I', 'W'},  // INDEX_WARRANT
+    {'I', 'X'},  // INDEX_LINKED_EXCHANGEABLE_NOTES
+    {'J', ' '},  // CORPORATE_BACKED_TRUST_SECURITY
+    {'L', ' '},  // CONTINGENT_LITIGATION_RIGHT
+    {'L', 'L'},  // LIMITED_LIABILITY_COMPANY
+    {'M', ' '},  // EQUITY_BASED_DERIVATIVE
+    {'M', 'F'},  // MANAGED_FUND_SHARES
+    {'M', 'L'},  // ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES
+    {'M', 'T'},  // MANAGED_TRUST_SECURITIES
+    {'N', ' '},  // NY_REGISTRY_SHARES
+    {'O', ' '},  // OPEN_ENDED_MUTUAL_FUND
+    {'P', ' '},  // PRIVATELY_HELD_SECURITY
+    {'P', 'P'},  // POISON_PILL
+    {'P', 'U'},  // PARTNERSHIP_UNITS
+    {'Q', ' '},  // CLOSED_END_FUNDS
+    {'R', ' '},  // REG_S
+    {'R', 'C'},  // COMMODITY_REDEEMABLE_COMMODITY_LINKED
+    {'R', 'F'},  // ETN_REDEEMABLE_FUTURES_LINKED
+    {'R', 'T'},  // REIT
+    {'R', 'U'},  // COMMODITY_REDEEMABLE_CURRENCY_LINKED
+    {'S', ' '},  // SEED
+    {'S', 'C'},  // SPOT_RATE_CLOSING
+    {'S', 'I'},  // SPOT_RATE_INTRADAY
+    {'T', ' '},  // TRACKING_STOCK
+    {'T', 'C'},  // TRUST_CERTIFICATES
+    {'T', 'U'},  // TRUST_UNITS
+    {'U', ' '},  // PORTAL
+    {'V', ' '},  // CONTINGENT_VALUE_RIGHT
+    {'W', ' '},  // TRUST_ISSUED_RECEIPTS
+    {'W', 'C'},  // WORLD_CURRENCY_OPTION
+    {'X', ' '},  // TRUST
+    {'Y', ' '},  // OTHER
+    {'Z', ' '},  // NOT_APPLICABLE
+};
+static_assert(
+    static_cast<size_t>(IssueSubTypeCode::COUNT) == std::size(issue_sub_type_table)
+);
+
+/*
  * Denotes if an issue or quoting participant  record is set up in a NASDAQ production environment or test environment.
  */
 enum class Authenticity : char {
@@ -129,7 +270,7 @@ enum class Tier : char {
 };
 
 /**
- * Stock Directory Message – Type 'R'
+ * Stock Directory Message (Section 1.2.1) – Type 'R'
  */
 #pragma pack(push, 1)
 struct StockDirectoryMessage {
@@ -141,7 +282,7 @@ struct StockDirectoryMessage {
     YesNo round_lots_only;                      // Offset 25, len  1: Yes => Only round lots are allowed
                                                 //                    No => Odd and mixed lots are allowed
     IssueClassification issue_classification;   // Offset 26, len  1: see IssueClassification enum class
-    char issue_sub_type[2];                     // Offset 27, len  2: 2-char alpha
+    IssueSubType issue_sub_type;                // Offset 27, len  2: see IssueSubTypeCode / issue_sub_type_table
     Authenticity authenticity;                  // Offset 29, len  1: see Authenticity enum class
     YesNo short_sale_threshold_indicator;       // Offset 30, len  1: Yes => Restricted under SEC Rule 203(b)(3)
                                                 //                    No => Not restricted
@@ -229,6 +370,52 @@ static_assert(
     static_cast<size_t>(TradingActionReason::COUNT) == std::size(reason_table)
 );
 
+/*
+ * Trading Resumption Reason Codes - Appendix C
+ * Used in the Reason field of StockTradingActionMessage when TradingState is TRADING or QUOTATION_ONLY.
+ */
+enum class TradingResumptionReason : uint8_t {
+    NEWS_AND_RESUMPTION_TIMES,                          // T3
+    SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY,       // T7
+    QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED,            // R4
+    FILING_REQUIREMENTS_SATISFIED_RESOLVED,             // R9
+    ISSUER_NEWS_NOT_FORTHCOMING,                        // C3
+    QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET,          // C4
+    QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET,          // C9
+    TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY, // C11
+    MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION,             // MWCQ
+    NEW_ISSUE_AVAILABLE,                                // R1
+    ISSUE_AVAILABLE,                                    // R2
+    IPO_SECURITY_RELEASED_FOR_QUOTATION,                // IPOQ
+    IPO_SECURITY_POSITIONING_WINDOW_EXTENSION,          // IPOE
+    REASON_NOT_AVAILABLE,                               // (space)
+    COUNT
+};
+
+constexpr Reason resumption_reason_table[] = {
+    {'T','3',' ',' '},  // NEWS_AND_RESUMPTION_TIMES
+    {'T','7',' ',' '},  // SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY
+    {'R','4',' ',' '},  // QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED
+    {'R','9',' ',' '},  // FILING_REQUIREMENTS_SATISFIED_RESOLVED
+    {'C','3',' ',' '},  // ISSUER_NEWS_NOT_FORTHCOMING
+    {'C','4',' ',' '},  // QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET
+    {'C','9',' ',' '},  // QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET
+    {'C','1','1',' '},  // TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY
+    {'M','W','C','Q'},  // MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION
+    {'R','1',' ',' '},  // NEW_ISSUE_AVAILABLE
+    {'R','2',' ',' '},  // ISSUE_AVAILABLE
+    {'I','P','O','Q'},  // IPO_SECURITY_RELEASED_FOR_QUOTATION
+    {'I','P','O','E'},  // IPO_SECURITY_POSITIONING_WINDOW_EXTENSION
+    {' ',' ',' ',' '},  // REASON_NOT_AVAILABLE
+};
+static_assert(
+    static_cast<size_t>(TradingResumptionReason::COUNT) == std::size(resumption_reason_table)
+);
+
+// ============================================================================
+// Reason code decode functions → see include/protocols/itch/ITCHDecoder.hpp
+// (constexpr Fibonacci hash map + decode_halt_reason / decode_resumption_reason)
+// ============================================================================
 
 /**
  * Stock Trading Action Message (Section 1.2.2) – Type 'H'
@@ -239,7 +426,7 @@ struct StockTradingActionMessage {
     char stock[8];               // Offset 11, len 8
     TradingState trading_state;  // Offset 19, len 1: see TradingState enum class
     char reserved;               // Offset 20, len 1
-    Reason reason;               // Offset 21, len 4: see TradingActionReason namespace
+    Reason reason;               // Offset 21, len 4: see TradingActionReason (halt) / TradingResumptionReason (resume)
 };
 #pragma pack(pop)
 
