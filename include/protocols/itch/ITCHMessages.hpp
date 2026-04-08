@@ -339,9 +339,31 @@ struct Reason {
     char code[4];  // 4-char alpha code indicating the reason for a trading action
 
     constexpr Reason(char c0, char c1, char c2, char c3) : code{c0, c1, c2, c3} {}
+
+    // We need this for hashmap lookup and testing equality in unit tests.
+    constexpr bool operator==(const Reason& o) const noexcept {
+        return code[0] == o.code[0] && code[1] == o.code[1]
+            && code[2] == o.code[2] && code[3] == o.code[3];
+    }
+
+    // We need convert all 4 bytes into a uint32_t to add as our hasmap key
+    // and we use memcpy to avoid strict-aliasing violation (reinterpret_cast would be UB).
+    [[nodiscard]] uint32_t key() const noexcept {
+        uint32_t k;
+        std::memcpy(&k, code, 4);
+        return k;
+    }
 };
 static_assert(std::is_trivially_copyable_v<Reason>);
 static_assert(sizeof(Reason) == 4);
+
+// Compile-time helper: pack the 4-char reason code we receive into a uint32_t switch case.
+constexpr uint32_t pack_reason(char c0, char c1, char c2, char c3) noexcept {
+    return   static_cast<uint32_t>(static_cast<uint8_t>(c0))
+          | (static_cast<uint32_t>(static_cast<uint8_t>(c1)) <<  8)
+          | (static_cast<uint32_t>(static_cast<uint8_t>(c2)) << 16)
+          | (static_cast<uint32_t>(static_cast<uint8_t>(c3)) << 24);
+}
 
 constexpr Reason reason_table[] = {
     {'T','1',' ',' '},

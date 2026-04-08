@@ -88,7 +88,7 @@ struct MarketEvent {
      */
     char side;
     uint8_t flags;  // Bit 0=is_trade, 1=is_exec, 2=is_cancel, 3=is_printable
-    uint8_t _pad[6];  // Padding to reach exactly 64 bytes
+    uint8_t _pad[14]; // Pad to exactly one cache line (64 bytes)
 
     // ---- Constructors ----
 
@@ -135,10 +135,11 @@ static_assert(std::is_trivially_copyable_v<MarketEvent>,
               "MarketEvent must be trivially copyable");
 
 /**
- * Verify size is cache-line friendly (56-72 bytes with alignment).
+ * Verify size is exactly one cache line (64 bytes): each event maps to one
+ * cache line, eliminating false sharing when stored in the SPSC queue.
  */
-static_assert(sizeof(MarketEvent) >= 56 && sizeof(MarketEvent) <= 72,
-              "MarketEvent should fit within cache line padding");
+static_assert(sizeof(MarketEvent) == 64,
+              "MarketEvent must be exactly one cache line (64 bytes)");
 
 /**
  * Verify standard layout for binary compatibility.
