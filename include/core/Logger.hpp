@@ -24,7 +24,7 @@ class Logger {
     static void init(const std::string& name = "ullfh",
                      spdlog::level::level_enum level = spdlog::level::info) noexcept {
         try {
-            auto sink = std::ma6ke_shared<spdlog::sinks::stdout_color_sink_st>();
+            auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
             sink->set_level(level);
             
             std::vector<spdlog::sink_ptr> sinks{sink};

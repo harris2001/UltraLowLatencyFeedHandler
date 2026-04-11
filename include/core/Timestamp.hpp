@@ -21,7 +21,10 @@ class Timestamp {
     static Timestamp now() noexcept {
 #ifdef ULLFH_DIAGNOSTICS
         struct timespec ts;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
+        // ITCH 5 timestamps are in nanoseconds since midnight so we must compare our clock against wall time.
+        // If we are to use kernel-bypass with real hardware timestamping, we need to replace this with the
+        // NIC-provided hardware timestamp from the socket.
+        clock_gettime(CLOCK_REALTIME, &ts);
         // We need to multiply seconds by 1 billion to convert to nanoseconds, then add the nanosecond part.
         return Timestamp(static_cast<Rep>(ts.tv_sec) * 1'000'000'000UL + ts.tv_nsec);
 #else

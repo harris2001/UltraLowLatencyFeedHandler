@@ -19,7 +19,7 @@ option(BUILD_BENCHMARKS "Enable benchmarks" ON)
 ##################
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG -flto")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG -flto -march=native -funroll-loops")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address -DULLFH_DIAGNOSTICS")
 endif()
@@ -54,6 +54,7 @@ add_header_only_library(ullfh_core "spdlog::spdlog")
 add_header_only_library(ullfh_network "")
 add_header_only_library(ullfh_protocols ullfh_core)
 add_header_only_library(ullfh_pipeline ullfh_core)
+add_header_only_library(ullfh_logging "spdlog::spdlog")
 
 # Add source subdirectories (Phase 2: header-only, src will be populated in later phases)
 # add_subdirectory(src)
