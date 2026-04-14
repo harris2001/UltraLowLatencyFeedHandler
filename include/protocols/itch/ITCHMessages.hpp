@@ -9,19 +9,72 @@
 namespace ullfh::protocols::itch {
 
 /**
+ * Wrappers for the 2/4/8-byte big-endian integers that arrive on the wire.
+ *
+ * All three types are trivially copyable and have the same sizeof as the
+ * equivalent uint*_t, so packed structs cast directly from wire bytes without memcpy. 
+ */
+struct BeU16 {
+    uint8_t bytes[2];
+    [[nodiscard]] constexpr uint16_t get() const noexcept {
+        return static_cast<uint16_t>(bytes[0]) << 8
+             | static_cast<uint16_t>(bytes[1]);
+    }
+};
+struct BeU32 {
+    uint8_t bytes[4];
+    [[nodiscard]] constexpr uint32_t get() const noexcept {
+        return static_cast<uint32_t>(bytes[0]) << 24
+             | static_cast<uint32_t>(bytes[1]) << 16
+             | static_cast<uint32_t>(bytes[2]) <<  8
+             | static_cast<uint32_t>(bytes[3]);
+    }
+};
+struct BeU64 {
+    uint8_t bytes[8];
+    [[nodiscard]] constexpr uint64_t get() const noexcept {
+        return static_cast<uint64_t>(bytes[0]) << 56
+             | static_cast<uint64_t>(bytes[1]) << 48
+             | static_cast<uint64_t>(bytes[2]) << 40
+             | static_cast<uint64_t>(bytes[3]) << 32
+             | static_cast<uint64_t>(bytes[4]) << 24
+             | static_cast<uint64_t>(bytes[5]) << 16
+             | static_cast<uint64_t>(bytes[6]) <<  8
+             | static_cast<uint64_t>(bytes[7]);
+    }
+};
+
+static_assert(std::is_trivially_copyable_v<BeU16> && sizeof(BeU16) == 2);
+static_assert(std::is_trivially_copyable_v<BeU32> && sizeof(BeU32) == 4);
+static_assert(std::is_trivially_copyable_v<BeU64> && sizeof(BeU64) == 8);
+
+/**
  * Common header present in every ITCH 5.0 message (offsets 0–10).
  */
 #pragma pack(push, 1)
 struct MessageHeader {
     char message_type;         // Offset  0, len 1: message type identifier
-    uint16_t stock_locate;     // Offset  1, len 2
-    uint16_t tracking_number;  // Offset  3, len 2: internal to NASDAQ
-    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight
+    BeU16 stock_locate;        // Offset  1, len 2
+    BeU16 tracking_number;     // Offset  3, len 2: internal to NASDAQ
+    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight — see decode_itch_timestamp()
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<MessageHeader>);
 static_assert(sizeof(MessageHeader) == 11);
+
+/**
+ * Decode the 6-byte big-endian ITCH nanosecond-since-midnight timestamp.
+ * Six byte-loads + five OR-shifts — no branches, no memcpy.
+ */
+[[nodiscard]] inline constexpr uint64_t decode_itch_timestamp(const uint8_t ts[6]) noexcept {
+    return static_cast<uint64_t>(ts[0]) << 40
+         | static_cast<uint64_t>(ts[1]) << 32
+         | static_cast<uint64_t>(ts[2]) << 24
+         | static_cast<uint64_t>(ts[3]) << 16
+         | static_cast<uint64_t>(ts[4]) <<  8
+         | static_cast<uint64_t>(ts[5]);
+}
 
 enum class EventCode : char {
     START_OF_MESSAGES = 'O',
@@ -278,7 +331,7 @@ struct StockDirectoryMessage {
     char stock[8];                              // Offset 11, len  8
     MarketCategory market_category;             // Offset 19, len  1: see MarketCategory enum class
     FSI financial_status_indicator;             // Offset 20, len  1: see FSI enum class
-    uint32_t round_lot_size;                    // Offset 21, len  4: number of shares in a round lot
+    BeU32 round_lot_size;                       // Offset 21, len  4: number of shares in a round lot
     YesNo round_lots_only;                      // Offset 25, len  1: Yes => Only round lots are allowed
                                                 //                    No => Odd and mixed lots are allowed
     IssueClassification issue_classification;   // Offset 26, len  1: see IssueClassification enum class
@@ -289,7 +342,7 @@ struct StockDirectoryMessage {
     YesNo ipo_flag;                             // Offset 31, len  1: Yes => New IPO, No => Not new
     Tier luld_reference_price_tier;             // Offset 32, len  1: see Tier enum class
     YesNo etp_flag;                             // Offset 33, len  1: Yes => ETP, No => Not ETP
-    uint32_t etp_leverage_factor;               // Offset 34, len  4: integral relationship of the ETP to the
+    BeU32 etp_leverage_factor;                  // Offset 34, len  4: integral relationship of the ETP to the
                                                 //                    underlying index (rounded to the nearest int)
     YesNo inverse_indicator;                    // Offset 38, len  1: Yes => Inverse, No => Not Inverse
 };
@@ -515,9 +568,9 @@ static_assert(std::is_trivially_copyable_v<MarketParticipantPositionMessage>);
 static_assert(sizeof(MarketParticipantPositionMessage) == 26);
 
 /**
- * A strongly-typed wrapper around a raw integer price field.
+ * A strongly-typed wrapper around a raw big-endian price field.
  *
- * @tparam T : Underlying integer type (e.g. uint32_t, uint64_t)
+ * @tparam T : Big-endian wire type (BeU32 or BeU64)
  * @tparam Precision : Number of decimal places (4 or 8 per ITCH spec)
  *
  * Wire layout is identical to T — no extra bytes.
@@ -525,24 +578,28 @@ static_assert(sizeof(MarketParticipantPositionMessage) == 26);
  */
 template <typename T, int Precision>
 struct Price {
-    T raw;  // Raw integer value as received on the wire
+    T raw;  // Raw big-endian bytes as received on the wire
 
-    [[nodiscard]] double get() const noexcept {
+    // Returns the native-endian integer price ticks (use on performance-sensitive path).
+    [[nodiscard]] constexpr auto native() const noexcept { return raw.get(); }
+
+    // Convert price ticks to double (used for logging only).
+    [[nodiscard]] double to_double() const noexcept {
         constexpr double scale = [] {
             double s = 1.0;
             for (int i = 0; i < Precision; ++i) s *= 10.0;
             return s;
         }();
-        return static_cast<double>(raw) / scale;
+        return static_cast<double>(raw.get()) / scale;
     }
 };
-static_assert(std::is_trivially_copyable_v<Price<uint32_t, 4>>);
-static_assert(std::is_trivially_copyable_v<Price<uint64_t, 8>>);
-static_assert(sizeof(Price<uint32_t, 4>) == sizeof(uint32_t));
-static_assert(sizeof(Price<uint64_t, 8>) == sizeof(uint64_t));
+static_assert(std::is_trivially_copyable_v<Price<BeU32, 4>>);
+static_assert(std::is_trivially_copyable_v<Price<BeU64, 8>>);
+static_assert(sizeof(Price<BeU32, 4>) == sizeof(uint32_t));
+static_assert(sizeof(Price<BeU64, 8>) == sizeof(uint64_t));
 
-using Price4 = Price<uint32_t, 4>;  // price × 10'000
-using Price8 = Price<uint64_t, 8>;  // price × 100'000'000
+using Price4 = Price<BeU32, 4>;   // price × 10'000
+using Price8 = Price<BeU64, 8>;   // price × 100'000'000
 
 /**
  * MWCB Decline Level Message (Section 1.2.5.1) – Type 'V'
@@ -584,7 +641,7 @@ enum class IPOQuotationReleaseQualifier : char { ANTICIPATED = 'A', IPO_CANCELLE
 struct IPOQuotingPeriodUpdateMessage {
     MessageHeader header;                 // Offsets 0–10
     char stock[8];                        // Offset 11, len 8
-    uint32_t ipo_quotation_release_time;  // Offset 19, len 4: seconds since midnight
+    BeU32 ipo_quotation_release_time;     // Offset 19, len 4: seconds since midnight
     IPOQuotationReleaseQualifier
         ipo_quotation_release_qualifier;  // Offset 23, len 1: see IPOQuotationReleaseQualifier enum class
     Price4 ipo_price;                     // Offset 24, len 4: Price 4
@@ -606,7 +663,7 @@ struct LULDAuctionCollarMessage {
     Price4 auction_collar_reference_price;  // Offset 19, len 4: Price 4
     Price4 upper_auction_collar_price;      // Offset 23, len 4: Price 4
     Price4 lower_auction_collar_price;      // Offset 27, len 4: Price 4
-    uint32_t auction_collar_extension;      // Offset 31, len 4: number of Auction Collar Extensions
+    BeU32 auction_collar_extension;         // Offset 31, len 4: number of Auction Collar Extensions
 };
 #pragma pack(pop)
 
@@ -644,9 +701,9 @@ enum class BuySellIndicator : char { BUY = 'B', SELL = 'S' };
 #pragma pack(push, 1)
 struct AddOrderMessage {
     MessageHeader header;                 // Offsets 0–10
-    uint64_t order_reference;             // Offset 11, len 8: unique order reference number
+    BeU64 order_reference;                // Offset 11, len 8: unique order reference number
     BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
-    uint32_t shares;                      // Offset 20, len 4
+    BeU32 shares;                         // Offset 20, len 4
     char stock[8];                        // Offset 24, len 8
     Price4 price;                         // Offset 32, len 4: Price4
 };
@@ -661,9 +718,9 @@ static_assert(sizeof(AddOrderMessage) == 36);
 #pragma pack(push, 1)
 struct AddOrderWithMPIDMessage {
     MessageHeader header;                 // Offsets 0–10
-    uint64_t order_reference;             // Offset 11, len 8
+    BeU64 order_reference;                // Offset 11, len 8
     BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
-    uint32_t shares;                      // Offset 20, len 4
+    BeU32 shares;                         // Offset 20, len 4
     char stock[8];                        // Offset 24, len 8
     Price4 price;                         // Offset 32, len 4: Price4
     char attribution[4];                  // Offset 36, len 4: MPID of the entered order
@@ -684,9 +741,9 @@ static_assert(sizeof(AddOrderWithMPIDMessage) == 40);
 #pragma pack(push, 1)
 struct OrderExecutedMessage {
     MessageHeader header;      // Offsets 0–10
-    uint64_t order_reference;  // Offset 11, len 8
-    uint32_t executed_shares;  // Offset 19, len 4
-    uint64_t match_number;     // Offset 23, len 8: unique match identifier
+    BeU64 order_reference;     // Offset 11, len 8
+    BeU32 executed_shares;     // Offset 19, len 4
+    BeU64 match_number;        // Offset 23, len 8: unique match identifier
 };
 #pragma pack(pop)
 
@@ -701,9 +758,9 @@ enum class Printable : char { PRINTABLE = 'Y', NON_PRINTABLE = 'N' };
 #pragma pack(push, 1)
 struct OrderExecutedWithPriceMessage {
     MessageHeader header;      // Offsets 0–10
-    uint64_t order_reference;  // Offset 11, len 8
-    uint32_t executed_shares;  // Offset 19, len 4
-    uint64_t match_number;     // Offset 23, len 8
+    BeU64 order_reference;     // Offset 11, len 8
+    BeU32 executed_shares;     // Offset 19, len 4
+    BeU64 match_number;        // Offset 23, len 8
     Printable printable;       // Offset 31, len 1: see Printable enum class
     Price4 execution_price;    // Offset 32, len 4: Price4
 };
@@ -719,8 +776,8 @@ static_assert(sizeof(OrderExecutedWithPriceMessage) == 36);
 #pragma pack(push, 1)
 struct OrderCancelMessage {
     MessageHeader header;       // Offsets 0–10
-    uint64_t order_reference;   // Offset 11, len 8
-    uint32_t cancelled_shares;  // Offset 19, len 4: number of shares removed
+    BeU64 order_reference;      // Offset 11, len 8
+    BeU32 cancelled_shares;     // Offset 19, len 4: number of shares removed
 };
 #pragma pack(pop)
 
@@ -734,7 +791,7 @@ static_assert(sizeof(OrderCancelMessage) == 23);
 #pragma pack(push, 1)
 struct OrderDeleteMessage {
     MessageHeader header;      // Offsets 0–10
-    uint64_t order_reference;  // Offset 11, len 8
+    BeU64 order_reference;     // Offset 11, len 8
 };
 #pragma pack(pop)
 
@@ -749,9 +806,9 @@ static_assert(sizeof(OrderDeleteMessage) == 19);
 #pragma pack(push, 1)
 struct OrderReplaceMessage {
     MessageHeader header;               // Offsets 0–10
-    uint64_t original_order_reference;  // Offset 11, len 8: reference of the order being replaced
-    uint64_t new_order_reference;       // Offset 19, len 8: reference of the replacement order
-    uint32_t shares;                    // Offset 27, len 4: new total display quantity
+    BeU64 original_order_reference;     // Offset 11, len 8: reference of the order being replaced
+    BeU64 new_order_reference;          // Offset 19, len 8: reference of the replacement order
+    BeU32 shares;                       // Offset 27, len 4: new total display quantity
     Price4 price;                       // Offset 31, len 4: Price4
 };
 #pragma pack(pop)
@@ -770,19 +827,19 @@ static_assert(sizeof(OrderReplaceMessage) == 35);
 #pragma pack(push, 1)
 struct TradeMessage {
     MessageHeader header;                 // Offsets 0–10
-    uint64_t order_reference;             // Offset 11, len 8: reference of the order that was matched
+    BeU64 order_reference;                // Offset 11, len 8: reference of the order that was matched
     BuySellIndicator buy_sell_indicator;  // Offset 19, len 1: see BuySellIndicator enum class
-    uint32_t shares;                      // Offset 20, len 4
+    BeU32 shares;                         // Offset 20, len 4
     char stock[8];                        // Offset 24, len 8
     Price4 price;                         // Offset 32, len 4: Price4
-    uint64_t match_number;                // Offset 36, len 8
+    BeU64 match_number;                   // Offset 36, len 8
 };
 #pragma pack(pop)
 
 static_assert(std::is_trivially_copyable_v<TradeMessage>);
 static_assert(sizeof(TradeMessage) == 44);
 
-enum class CrossType : char { OPENING = 'O', CLOSING = 'C', IPO_HALTED = 'H', EXTENDED_TRADING_CLOSE = 'E' };
+enum class CrossType : char { OPENING = 'O', CLOSING = 'C', IPO_HALTED = 'H', EXTENDED_TRADING_CLOSE = 'A' };
 
 /**
  * Cross Trade Message (Section 1.5.2) – Type 'Q'
@@ -791,10 +848,10 @@ enum class CrossType : char { OPENING = 'O', CLOSING = 'C', IPO_HALTED = 'H', EX
 #pragma pack(push, 1)
 struct CrossTradeMessage {
     MessageHeader header;   // Offsets 0–10
-    uint64_t shares;        // Offset 11, len 8: number of shares matched in the cross
+    BeU64 shares;           // Offset 11, len 8: number of shares matched in the cross
     char stock[8];          // Offset 19, len 8
     Price4 cross_price;     // Offset 27, len 4: Price4
-    uint64_t match_number;  // Offset 31, len 8
+    BeU64 match_number;     // Offset 31, len 8
     CrossType cross_type;   // Offset 39, len 1: see CrossType enum class
 };
 #pragma pack(pop)
@@ -809,7 +866,7 @@ static_assert(sizeof(CrossTradeMessage) == 40);
 #pragma pack(push, 1)
 struct BrokenTradeMessage {
     MessageHeader header;   // Offsets 0–10
-    uint64_t match_number;  // Offset 11, len 8: match number of the trade being broken
+    BeU64 match_number;     // Offset 11, len 8: match number of the trade being broken
 };
 #pragma pack(pop)
 
@@ -847,8 +904,8 @@ enum class ImbalanceDirection : char { BUY = 'B', SELL = 'S', NO_IMBALANCE = 'N'
 #pragma pack(push, 1)
 struct NOIIMessage {
     MessageHeader header;       // Offsets 0–10
-    uint64_t paired_shares;     // Offset 11, len  8: shares eligible to be matched at Current Reference Price
-    uint64_t imbalance_shares;  // Offset 19, len  8: shares not paired at Current Reference Price
+    BeU64 paired_shares;        // Offset 11, len  8: shares eligible to be matched at Current Reference Price
+    BeU64 imbalance_shares;     // Offset 19, len  8: shares not paired at Current Reference Price
     ImbalanceDirection imbalance_direction;             // Offset 27, len  1: see ImbalanceDirection enum class
     char stock[8];                                      // Offset 28, len  8
     Price4 far_price;                                   // Offset 36, len  4: Price4
@@ -900,7 +957,7 @@ struct DLCRPriceDiscoveryMessage {
     Price4 minimum_allowable_price;                 // Offset 20, len 4: 20% below Registration Statement Lower Price
     Price4 maximum_allowable_price;                 // Offset 24, len 4: 80% above Registration Statement Highest Price
     Price4 near_execution_price;                    // Offset 28, len 4: current reference price when DLCR volatility test passed
-    uint64_t near_execution_time;                   // Offset 32, len 8: time at which near execution price was set
+    BeU64 near_execution_time;                      // Offset 32, len 8: time at which near execution price was set
     Price4 lower_price_range_collar;                // Offset 40, len 4: Lower Auction Collar Threshold (10% below near execution price)
     Price4 upper_price_range_collar;                // Offset 44, len 4: Upper Auction Collar Threshold (10% above near execution price)
 };
