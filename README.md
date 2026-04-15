@@ -10,6 +10,8 @@ An ultra-low-latency market data feed handler written in modern C++ for parsing 
     - Zero-copy buffer management
     - Lock-free message queue
     - Memory pooling for hot paths
+    - CPU affinity and thread pinning to maintain cache locality
+    - DPDK support for direct NIC access to bypass kernel network stack
 - Benchmarks for latency and throughput
 - Test suite with Google Test
 - Documentation of my design choices
