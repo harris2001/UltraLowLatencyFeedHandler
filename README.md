@@ -1,6 +1,6 @@
 # Ultra-Low Latency Market Data Feed Handler
 
-A high-performance NASDAQ TotalView-ITCH 5.0 feed handler written in modern C++20. Receives UDP multicast data via MoldUDP64, decodes all 23 ITCH message types, and delivers normalised `MarketEvent` structs to a consumer through a lock-free SPSC queue — with no heap allocation on the hot path.
+A high-performance NASDAQ TotalView-ITCH 5.0 feed handler written in modern C++20. Receives UDP multicast data via MoldUDP64, decodes all 23 ITCH message types, and delivers normalised `MarketEvent` structs to a consumer through a lock-free SPSC queue.
 
 > **Design decisions** (why each choice was made) are documented in [docs/design.md](docs/design.md).
 
@@ -45,9 +45,9 @@ NIC (UDP multicast)
 | Layer | Component | Responsibility |
 |---|---|---|
 | Transport | `UdpReceiver` | POSIX UDP multicast socket; `recvmmsg` batch receive |
-| Framing | `MoldUDP64Receiver` | Strip MoldUDP64 header; validate session & sequence; gap detection |
+| Framing | `MoldUDP64Receiver` | Strips MoldUDP64 header; validates session & sequence; gap detection (potential re-request) |
 | Decoding | `ITCHDispatcher` | Zero-copy ITCH 5.0 decode -> `MarketEvent` |
-| Transfer | `SPSCQueue` | Lock-free ring buffer; one cache line per slot |
+| Transfer | `SPSCQueue` | Lock-free ring buffer (uses one cache line per slot for better cache locality) |
 | Consumption | `IParser` | Application-defined handler (strategy, logger, forwarder) |
 | Threading | `Pipeline` | Thread ownership, core pinning, SCHED_FIFO |
 
@@ -60,11 +60,11 @@ NIC (UDP multicast)
 Every Nasdaq UDP datagram is a MoldUDP64 downstream packet:
 
 ```
-Offset  Field            Size
-──────────────────────────────────────
- 0      Session          10   space-padded ASCII
-10      Sequence Number   8   uint64, big-endian
-18      Message Count     2   uint16, big-endian  (0x0000=heartbeat, 0xFFFF=end-of-session)
+Offset  Field            Size   Notes
+─────────────────────────────────────────────────────────────────────────────────────────────
+ 0      Session          10     space-padded ASCII
+10      Sequence Number   8     uint64, big-endian
+18      Message Count     2     uint16, big-endian  (0x0000=heartbeat, 0xFFFF=end-of-session)
 20      Message Block 0   …
         Message Block N   …
 ```
@@ -92,7 +92,7 @@ Each message block: 2-byte big-endian length followed by the ITCH payload.
 
 ## Key Data Structures
 
-### `MarketEvent` — normalised 64-byte message
+### `MarketEvent` - normalised 64-byte message
 
 All ITCH message types are decoded into a single cache-line-sized struct:
 
@@ -115,15 +115,15 @@ flags            49       1    bit 0=trade 1=exec 2=cancel 3=printable
 Total            64
 ```
 
-### `SPSCQueue<T, N>` — lock-free ring buffer
+### `SPSCQueue<T, N>` - lock-free ring buffer
 
 Power-of-two capacity, `alignas(64)` producer/consumer indices on separate cache lines. `try_push` / `try_pop` are wait-free. No heap allocation.
 
-### `GapRecord` — sequence gap descriptor
+### `GapRecord` - sequence gap descriptor
 
-Carries session (10 bytes), `expected_seq`, `received_seq`, and ingress timestamp. Forwarded to `IParser::on_gap()` — the application decides recovery strategy.
+Carries session (10 bytes), `expected_seq`, `received_seq`, and ingress timestamp. Forwarded to `IParser::on_gap()` - the application decides recovery strategy.
 
-### `ISocket` — transport abstraction
+### `ISocket` - transport abstraction
 
 Pure virtual interface (`open`, `close`, `recv_batch`). `UdpReceiver` is the POSIX implementation. A DPDK or OpenOnload backend can be substituted without touching the protocol or pipeline layers.
 
@@ -136,9 +136,9 @@ Pure virtual interface (`open`, `close`, `recv_batch`). `UdpReceiver` is the POS
 | `SO_RCVBUF` | 8 MB | Absorb microsecond bursts |
 | `SO_BUSY_POLL` | 50 µs | Kernel-side busy-wait, avoids epoll wakeup latency |
 | `SO_REUSEADDR` | on | Allow fast restart |
-| `IP_ADD_MEMBERSHIP` | — | ASM multicast join |
-| `IP_ADD_SOURCE_MEMBERSHIP` | — | SSM multicast join |
-| `SOCK_NONBLOCK` | — | Non-blocking; pairs with busy-poll loop |
+| `IP_ADD_MEMBERSHIP` | - | ASM multicast join |
+| `IP_ADD_SOURCE_MEMBERSHIP` | - | SSM multicast join |
+| `SOCK_NONBLOCK` | - | Non-blocking; pairs with busy-poll loop |
 
 ---
 
@@ -204,12 +204,12 @@ benchmarks/
 ## Requirements
 
 - Linux (only tested platform)
-- C++20 compiler — GCC ≥ 13 or Clang ≥ 16
+- C++20 compiler - GCC ≥ 13 or Clang ≥ 16
 - CMake ≥ 3.28
 
 ## Dependencies
 
-All fetched automatically via CMake `FetchContent` — no system installation required.
+All fetched automatically via CMake `FetchContent` - no system installation required.
 
 | Library | Version | Purpose |
 |---|---|---|
