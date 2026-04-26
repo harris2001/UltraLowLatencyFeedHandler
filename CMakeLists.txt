@@ -1,9 +1,23 @@
 cmake_minimum_required(VERSION 3.28)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR
+        "In-source builds are not allowed. Run:\n"
+        "  cmake -B build -DCMAKE_BUILD_TYPE=Debug\n"
+        "  cmake --build build"
+    )
+endif()
+
 project(UltraLowLatencyFeedHandler)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
@@ -21,7 +35,7 @@ option(BUILD_BENCHMARKS "Enable benchmarks" ON)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG -flto -march=native -funroll-loops")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address -DULLFH_DIAGNOSTICS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address -DULLFH_DIAGNOSTICS")
 endif()
 
 ##################
@@ -56,8 +70,8 @@ add_header_only_library(ullfh_protocols ullfh_core)
 add_header_only_library(ullfh_pipeline ullfh_core)
 add_header_only_library(ullfh_logging "spdlog::spdlog")
 
-# Add source subdirectories (Phase 2: header-only, src will be populated in later phases)
-# add_subdirectory(src)
+# Add source subdirectories
+add_subdirectory(src)
 
 ###############
 # Main Target #
