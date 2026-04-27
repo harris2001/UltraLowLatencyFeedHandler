@@ -56,7 +56,7 @@ struct MessageHeader {
     char message_type;         // Offset  0, len 1: message type identifier
     BeU16 stock_locate;        // Offset  1, len 2
     BeU16 tracking_number;     // Offset  3, len 2: internal to NASDAQ
-    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight — see decode_itch_timestamp()
+    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight - see decode_itch_timestamp()
 };
 #pragma pack(pop)
 
@@ -65,7 +65,7 @@ static_assert(sizeof(MessageHeader) == 11);
 
 /**
  * Decode the 6-byte big-endian ITCH nanosecond-since-midnight timestamp.
- * Six byte-loads + five OR-shifts — no branches, no memcpy.
+ * Six byte-loads + five OR-shifts - no branches, no memcpy.
  */
 [[nodiscard]] inline constexpr uint64_t decode_itch_timestamp(const uint8_t ts[6]) noexcept {
     return static_cast<uint64_t>(ts[0]) << 40
@@ -488,7 +488,7 @@ static_assert(
 );
 
 // ============================================================================
-// Reason code decode functions → see include/protocols/itch/ITCHDecoder.hpp
+// Reason code decode functions -> see include/protocols/itch/ITCHDecoder.hpp
 // (constexpr Fibonacci hash map + decode_halt_reason / decode_resumption_reason)
 // ============================================================================
 
@@ -573,7 +573,7 @@ static_assert(sizeof(MarketParticipantPositionMessage) == 26);
  * @tparam T : Big-endian wire type (BeU32 or BeU64)
  * @tparam Precision : Number of decimal places (4 or 8 per ITCH spec)
  *
- * Wire layout is identical to T — no extra bytes.
+ * Wire layout is identical to T - no extra bytes.
  * Precision is a compile-time constant; no runtime storage needed.
  */
 template <typename T, int Precision>
