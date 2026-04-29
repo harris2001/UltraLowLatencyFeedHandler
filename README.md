@@ -152,7 +152,7 @@ Pure virtual interface (`open`, `close`, `recv_batch`). `UdpReceiver` is the POS
 | `SPSCQueue::try_push` / `try_pop` | < 10 ns |
 | NIC ingress -> `IParser::on_market_event` | < 5 µs |
 
-<!-- ---
+---
 
 ## File Layout
 
@@ -166,10 +166,9 @@ include/
 │   ├── PacketBuffer.hpp       Non-owning UDP packet descriptor
 │   ├── ParseResult.hpp        Generic result<T, ErrorCode>
 │   └── Timestamp.hpp          64-bit nanosecond clock (no-op in Release)
-├── networking/
-│   ├── Receiver.hpp           ISocket abstract interface
-│   └── SocketConfig.hpp       Socket configuration
 ├── network/
+│   ├── Receiver.hpp           ISocket abstract interface
+│   ├── SocketConfig.hpp       Socket configuration
 │   └── UdpReceiver.hpp        POSIX ISocket implementation
 ├── pipeline/
 │   └── SPSCQueue.hpp          Lock-free SPSC ring buffer
@@ -177,6 +176,7 @@ include/
     ├── IParser.hpp             Consumer callbacks
     ├── itch/
     │   ├── ITCHMessages.hpp    23 ITCH 5.0 wire structs + BE helpers
+    │   ├── ITCHDecoder.hpp     Decoder interface
     │   └── ITCHDispatcher.hpp  Zero-allocation decode -> MarketEvent
     └── mold/
         ├── MoldUDP64Header.hpp     Wire types for downstream packet + message block
@@ -189,15 +189,19 @@ src/
 │   └── ThreadPinning.cpp      pthread_setaffinity_np, SCHED_FIFO
 ├── network/
 │   └── UdpReceiver.cpp
-└── protocols/itch/
-    └── Decoder.cpp            ITCHDispatcher implementation
+├── pipeline/
+│   └── SpscQueue.cpp
+└── protocols/
+    ├── IParser.cpp
+    └── itch/
+        └── Decoder.cpp        ITCHDispatcher implementation
 
 tests/
 └── core/types_test.cpp        GoogleTest unit tests
 
 benchmarks/
 └── main.cpp                   Google Benchmark stubs
-``` -->
+```
 
 ---
 
@@ -228,9 +232,11 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 
 # Debug (AddressSanitizer + diagnostics)
-cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-debug -j$(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j$(nproc)
 ```
+
+> All build artefacts (`_deps`, `CMakeFiles`, binaries, libraries) are placed inside `build/`. The project root stays clean. In-source builds are blocked.
 
 ## Tests
 
@@ -241,5 +247,5 @@ ctest --test-dir build --output-on-failure
 ## Benchmarks
 
 ```bash
-./build/benchmarks/ullfh_benchmarks
+./build/bin/ullfh_benchmarks
 ```
