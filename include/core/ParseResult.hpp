@@ -18,8 +18,7 @@ namespace ullfh::core {
 template <typename T>
 class ParseResult {
    public:
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "ParseResult<T> requires T to be trivially copyable");
+    static_assert(std::is_trivially_copyable_v<T>, "ParseResult<T> requires T to be trivially copyable");
 
     /**
      * Successful parse.
@@ -30,17 +29,13 @@ class ParseResult {
     /**
      * Parse failure.
      */
-    constexpr explicit ParseResult(ErrorCode error) noexcept
-        : status_(error), data_(nullptr), bytes_consumed_(0) {}
+    constexpr explicit ParseResult(ErrorCode error) noexcept : status_(error), data_(nullptr), bytes_consumed_(0) {}
 
     // Default constructor: no error state.
-    constexpr ParseResult() noexcept
-        : status_(ErrorCode::SUCCESS), data_(nullptr), bytes_consumed_(0) {}
+    constexpr ParseResult() noexcept : status_(ErrorCode::SUCCESS), data_(nullptr), bytes_consumed_(0) {}
 
     inline constexpr ErrorCode status() const noexcept { return status_; }
-    inline constexpr bool ok() const noexcept {
-        return status_ == ErrorCode::SUCCESS;
-    }
+    inline constexpr bool ok() const noexcept { return status_ == ErrorCode::SUCCESS; }
 
     inline constexpr T* data() const noexcept { return data_; }
     inline constexpr size_t bytes_consumed() const noexcept { return bytes_consumed_; }
@@ -55,8 +50,6 @@ class ParseResult {
 };
 
 // Compile-time verification
-static_assert(
-    std::is_trivially_copyable_v<ParseResult<uint32_t>>,
-    "ParseResult must be trivially copyable");
+static_assert(std::is_trivially_copyable_v<ParseResult<uint32_t>>, "ParseResult must be trivially copyable");
 
 }  // namespace ullfh::core

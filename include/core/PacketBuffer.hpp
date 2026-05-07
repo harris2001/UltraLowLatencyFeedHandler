@@ -16,14 +16,13 @@ namespace ullfh::core {
  *
  */
 struct PacketBuffer {
-    uint8_t* data; // Packet payload ptr owned by pool
+    uint8_t* data;  // Packet payload ptr owned by pool
     size_t capacity;
     size_t length;
-    Timestamp recv_ts; //ingress time (captured in the async receive callback)
-    uint32_t source_id; // multicast channel | feed source | virtual system ID
+    Timestamp recv_ts;   // ingress time (captured in the async receive callback)
+    uint32_t source_id;  // multicast channel | feed source | virtual system ID
 
-    constexpr PacketBuffer() noexcept
-        : data(nullptr), capacity(0), length(0), recv_ts(Timestamp()), source_id(0) {}
+    constexpr PacketBuffer() noexcept : data(nullptr), capacity(0), length(0), recv_ts(Timestamp()), source_id(0) {}
 
     /**
      * Construct a descriptor for a preallocated buffer.
@@ -39,9 +38,7 @@ struct PacketBuffer {
     /**
      * Return the buffer as a byte span
      */
-    inline constexpr std::span<uint8_t> span() const noexcept {
-        return std::span<uint8_t>(data, length);
-    }
+    inline constexpr std::span<uint8_t> span() const noexcept { return std::span<uint8_t>(data, length); }
 
     inline constexpr size_t available() const noexcept { return capacity - length; }
 
@@ -51,9 +48,7 @@ struct PacketBuffer {
     inline constexpr void reset() noexcept { length = 0; }
 };
 
-static_assert(std::is_trivially_copyable_v<PacketBuffer>,
-              "PacketBuffer must be trivially copyable");
-static_assert(sizeof(PacketBuffer) <= 64,
-              "PacketBuffer should fit in one cache line for allocation efficiency");
+static_assert(std::is_trivially_copyable_v<PacketBuffer>, "PacketBuffer must be trivially copyable");
+static_assert(sizeof(PacketBuffer) <= 64, "PacketBuffer should fit in one cache line for allocation efficiency");
 
 }  // namespace ullfh::core

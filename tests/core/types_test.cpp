@@ -7,8 +7,8 @@
 #include "core/PacketBuffer.hpp"
 #include "core/ParseResult.hpp"
 #include "core/Timestamp.hpp"
-#include "protocols/itch/ITCHMessages.hpp"
 #include "protocols/itch/ITCHDecoder.hpp"
+#include "protocols/itch/ITCHMessages.hpp"
 
 namespace ullfh::core::test {
 
@@ -16,9 +16,7 @@ namespace ullfh::core::test {
 // Timestamp Tests
 // ============================================================================
 
-TEST(TimestampTest, IsTriviallyCopyable) {
-    EXPECT_TRUE(std::is_trivially_copyable_v<Timestamp>);
-}
+TEST(TimestampTest, IsTriviallyCopyable) { EXPECT_TRUE(std::is_trivially_copyable_v<Timestamp>); }
 
 TEST(TimestampTest, DefaultConstruction) {
     Timestamp ts;
@@ -60,9 +58,7 @@ TEST(ErrorCodeTest, ErrorStringValid) {
 // ParseResult Tests
 // ============================================================================
 
-TEST(ParseResultTest, IsTriviallyCopyable) {
-    EXPECT_TRUE((std::is_trivially_copyable_v<ParseResult<uint32_t>>));
-}
+TEST(ParseResultTest, IsTriviallyCopyable) { EXPECT_TRUE((std::is_trivially_copyable_v<ParseResult<uint32_t>>)); }
 
 TEST(ParseResultTest, SuccessConstruction) {
     uint32_t data = 42;
@@ -83,13 +79,9 @@ TEST(ParseResultTest, ErrorConstruction) {
 // PacketBuffer Tests
 // ============================================================================
 
-TEST(PacketBufferTest, IsTriviallyCopyable) {
-    EXPECT_TRUE(std::is_trivially_copyable_v<PacketBuffer>);
-}
+TEST(PacketBufferTest, IsTriviallyCopyable) { EXPECT_TRUE(std::is_trivially_copyable_v<PacketBuffer>); }
 
-TEST(PacketBufferTest, SizeConstraint) {
-    EXPECT_LE(sizeof(PacketBuffer), 64);
-}
+TEST(PacketBufferTest, SizeConstraint) { EXPECT_LE(sizeof(PacketBuffer), 64); }
 
 TEST(PacketBufferTest, DefaultConstruction) {
     PacketBuffer buf;
@@ -111,9 +103,7 @@ TEST(PacketBufferTest, ResetClearsLength) {
 // MarketEvent Tests
 // ============================================================================
 
-TEST(MarketEventTest, IsTriviallyCopyable) {
-    EXPECT_TRUE(std::is_trivially_copyable_v<core::MarketEvent>);
-}
+TEST(MarketEventTest, IsTriviallyCopyable) { EXPECT_TRUE(std::is_trivially_copyable_v<core::MarketEvent>); }
 
 TEST(MarketEventTest, SizeIsEfficient) {
     // 64 bytes == exactly one cache line: each event maps 1-to-1 to a cache
@@ -127,9 +117,7 @@ TEST(MarketEventTest, AlignmentIs8Bytes) {
     EXPECT_EQ(alignof(core::MarketEvent), 8);
 }
 
-TEST(MarketEventTest, IsStandardLayout) {
-    EXPECT_TRUE(std::is_standard_layout_v<core::MarketEvent>);
-}
+TEST(MarketEventTest, IsStandardLayout) { EXPECT_TRUE(std::is_standard_layout_v<core::MarketEvent>); }
 
 TEST(MarketEventTest, DefaultConstruction) {
     core::MarketEvent evt;

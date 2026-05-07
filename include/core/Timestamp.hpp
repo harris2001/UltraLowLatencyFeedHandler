@@ -1,13 +1,14 @@
 #pragma once
 
-#include <cstdint>
 #include <time.h>
+
+#include <cstdint>
 
 namespace ullfh::core {
 
 /**
  * This class is a high-resolution timestamp wrapper around a 64-bit nanosecond count.
- * 
+ *
  * To better measure latency in diagnostics builds, we use CLOCK_MONOTONIC to capture time with nanosecond precision.
  * In release builds, the now() function is a no-op that returns 0 to eliminate syscall overhead from the hot path.
  */
@@ -35,34 +36,25 @@ class Timestamp {
     /**
      * Construct from raw ITCH nanosecond timestamp.
      */
-    static constexpr Timestamp from_itch_ns(Rep nanoseconds) noexcept {
-        return Timestamp(nanoseconds);
-    }
+    static constexpr Timestamp from_itch_ns(Rep nanoseconds) noexcept { return Timestamp(nanoseconds); }
 
     constexpr Rep count() const noexcept { return ns_; }
 
     /**
-     * This overload allows us to measure the latency between two timestamps with zero overhead, 
+     * This overload allows us to measure the latency between two timestamps with zero overhead,
      * since we define it as inlined and rely on the compiler for optimization.
      */
-    inline constexpr Rep operator-(const Timestamp& other) const noexcept {
-        return ns_ - other.ns_;
-    }
+    inline constexpr Rep operator-(const Timestamp& other) const noexcept { return ns_ - other.ns_; }
 
-    inline constexpr bool operator<(const Timestamp& other) const noexcept {
-        return ns_ < other.ns_;
-    }
+    inline constexpr bool operator<(const Timestamp& other) const noexcept { return ns_ < other.ns_; }
 
-    inline constexpr bool operator==(const Timestamp& other) const noexcept {
-        return ns_ == other.ns_;
-    }
+    inline constexpr bool operator==(const Timestamp& other) const noexcept { return ns_ == other.ns_; }
 
    private:
     Rep ns_;
 };
 
-// Compile-time assertion: must be trivially copyable to allow zero-copy passing through our SPSC queue. 
-static_assert(std::is_trivially_copyable_v<Timestamp>,
-              "Timestamp must be trivially copyable");
+// Compile-time assertion: must be trivially copyable to allow zero-copy passing through our SPSC queue.
+static_assert(std::is_trivially_copyable_v<Timestamp>, "Timestamp must be trivially copyable");
 
 }  // namespace ullfh::core
