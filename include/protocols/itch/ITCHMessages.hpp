@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
@@ -53,10 +52,10 @@ static_assert(std::is_trivially_copyable_v<BeU64> && sizeof(BeU64) == 8);
  */
 #pragma pack(push, 1)
 struct MessageHeader {
-    char message_type;         // Offset  0, len 1: message type identifier
-    BeU16 stock_locate;        // Offset  1, len 2
-    BeU16 tracking_number;     // Offset  3, len 2: internal to NASDAQ
-    uint8_t timestamp[6];      // Offset  5, len 6: nanoseconds since midnight - see decode_itch_timestamp()
+    char message_type;         // Offset 0, len 1: message type identifier
+    BeU16 stock_locate;        // Offset 1, len 2
+    BeU16 tracking_number;     // Offset 3, len 2: internal to NASDAQ
+    uint8_t timestamp[6];      // Offset 5, len 6: nanoseconds since midnight - see decode_itch_timestamp()
 };
 #pragma pack(pop)
 
@@ -903,9 +902,9 @@ enum class ImbalanceDirection : char { BUY = 'B', SELL = 'S', NO_IMBALANCE = 'N'
  */
 #pragma pack(push, 1)
 struct NOIIMessage {
-    MessageHeader header;       // Offsets 0–10
-    BeU64 paired_shares;        // Offset 11, len  8: shares eligible to be matched at Current Reference Price
-    BeU64 imbalance_shares;     // Offset 19, len  8: shares not paired at Current Reference Price
+    MessageHeader header;                               // Offsets 0–10
+    BeU64 paired_shares;                                // Offset 11, len  8: shares eligible to be matched at Current Reference Price
+    BeU64 imbalance_shares;                             // Offset 19, len  8: shares not paired at Current Reference Price
     ImbalanceDirection imbalance_direction;             // Offset 27, len  1: see ImbalanceDirection enum class
     char stock[8];                                      // Offset 28, len  8
     Price4 far_price;                                   // Offset 36, len  4: Price4
