@@ -55,3 +55,7 @@ The OS scheduler can preempt a thread mid-packet and not resume it for milliseco
 ## `ParseResult<T>` over exceptions
 
 Exceptions have non-zero cost even when not thrown (larger binaries, inhibited inlining, stack unwinding tables). `ParseResult<T>` is a trivially copyable result type carrying either a pointer to the parsed data + bytes consumed, or an `ErrorCode`. The `explicit operator bool` enables clean if-guard idiom. No exception handling machinery is pulled into the hot path.
+
+## Fibonacci hashing for ultra-fast ITCH message type lookup
+
+The ITCH message type byte is a char in the range 0x20–0x7F. A direct `switch` jump table would require 96 entries, most of which are unused. Instead, the message type is hashed by multiplying by the Fibonacci constant (2^64 / golden ratio) and taking the top N bits as an index into a 16-entry `std::array` of function pointers. The Fibonacci hash provides good distribution even with small tables, so all 23 valid message types map to unique indices with no collisions. This allows for a compact jump table without wasted entries.

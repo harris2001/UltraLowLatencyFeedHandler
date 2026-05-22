@@ -47,3 +47,4 @@ CMakeFiles*/
 
 # ITCH data
 *.gz
+*NASDAQ_ITCH50
