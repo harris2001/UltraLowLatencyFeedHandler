@@ -64,33 +64,19 @@ struct MarketEvent {
     Timestamp exch_ts;  // Exchange timestamp
     Timestamp recv_ts;  // Ingress timestamp when we received the message (for latency measurement)
 
-    // ---- Order/Trade Identity ----
-
-    /**
-     * Unique identifier for an order within a session.
-     */
+    // Unique identifier for an order within a session.
     uint64_t order_ref;
 
-    // ---- Trade/Order Book Data ----
-
-    /**
-     * Quantity in shares.
-     */
+    // Amount of shares
     uint32_t quantity;
 
-    /**
-     * Price in fixed-point: cents × 10,000 (e.g. 12345 = $1.2345)
-     */
+    // Price in fixed-point: cents x 10,000 (e.g. 12345 = $1.2345)
     int64_t price_int;
 
-    /**
-     * Side: 'B' (buy) or 'S' (sell).
-     */
+    // Side: 'B' (buy) or 'S' (sell).
     char side;
     uint8_t flags;     // Bit 0=is_trade, 1=is_exec, 2=is_cancel, 3=is_printable
     uint8_t _pad[14];  // Pad to exactly one cache line (64 bytes)
-
-    // ---- Constructors ----
 
     constexpr MarketEvent() noexcept
         : type(Type::SYSTEM_EVENT),
@@ -104,7 +90,7 @@ struct MarketEvent {
           side('B'),
           flags(0) {}
 
-    // ---- Helpers ----
+    // Helpers
 
     inline constexpr bool is_trade() const noexcept { return (flags & 0x01) != 0; }
     inline constexpr bool is_execution() const noexcept { return (flags & 0x02) != 0; }
@@ -125,8 +111,6 @@ struct MarketEvent {
         return static_cast<int64_t>(recv_ts.count() - exch_ts.count());
     }
 };
-
-// ---- Compile-Time Assertions ----
 
 /**
  * Verify trivial copyability: essential for zero-copy passing through SPSC queue.
