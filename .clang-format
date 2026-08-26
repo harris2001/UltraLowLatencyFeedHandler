@@ -1,7 +1,16 @@
 BasedOnStyle: Google
 IndentWidth: 4
 ColumnLimit: 120
-AllowShortIfStatementsOnASingleLine: false
+
+BinPackParameters: false
+BinPackArguments: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: true 
+
 SortIncludes: true
 SpacesBeforeTrailingComments: 2
 NamespaceIndentation: None
+
+ContinuationIndentWidth: 5
+BreakBeforeBinaryOperators: NonAssignment
+AlignOperands: AlignAfterOperator

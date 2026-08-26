@@ -1,47 +1,34 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <cstring>
 #include <type_traits>
 
 namespace ullfh::protocols::itch {
 
 /**
- * Wrappers for the 2/4/8-byte big-endian integers that arrive on the wire.
- *
- * All three types are trivially copyable and have the same sizeof as the
- * equivalent uint*_t, so packed structs cast directly from wire bytes without memcpy. 
+ * Convert BigEndian integer as they arrive on the wire to uint type
  */
-struct BeU16 {
-    uint8_t bytes[2];
-    [[nodiscard]] constexpr uint16_t get() const noexcept {
-        return static_cast<uint16_t>(bytes[0]) << 8
-             | static_cast<uint16_t>(bytes[1]);
+template <int width>
+    requires(width == 2 or width == 4 or width == 8)
+struct BE {
+    uint8_t bytes[width];
+
+    [[nodiscard]] constexpr auto get() const noexcept {
+        using T = std::conditional_t<
+             width == 2,
+             uint16_t,
+             std::conditional_t<width == 4, uint32_t, std::conditional_t<width == 8, uint64_t, void>>>;
+        T value = 0;
+        for (int i = 0; i < width; ++i) {
+            value |= static_cast<T>(bytes[i]) << (8 * (width - 1 - i));
+        }
+        return value;
     }
 };
-struct BeU32 {
-    uint8_t bytes[4];
-    [[nodiscard]] constexpr uint32_t get() const noexcept {
-        return static_cast<uint32_t>(bytes[0]) << 24
-             | static_cast<uint32_t>(bytes[1]) << 16
-             | static_cast<uint32_t>(bytes[2]) <<  8
-             | static_cast<uint32_t>(bytes[3]);
-    }
-};
-struct BeU64 {
-    uint8_t bytes[8];
-    [[nodiscard]] constexpr uint64_t get() const noexcept {
-        return static_cast<uint64_t>(bytes[0]) << 56
-             | static_cast<uint64_t>(bytes[1]) << 48
-             | static_cast<uint64_t>(bytes[2]) << 40
-             | static_cast<uint64_t>(bytes[3]) << 32
-             | static_cast<uint64_t>(bytes[4]) << 24
-             | static_cast<uint64_t>(bytes[5]) << 16
-             | static_cast<uint64_t>(bytes[6]) <<  8
-             | static_cast<uint64_t>(bytes[7]);
-    }
-};
+
+using BeU16 = BE<2>;
+using BeU32 = BE<4>;
+using BeU64 = BE<8>;
 
 static_assert(std::is_trivially_copyable_v<BeU16> && sizeof(BeU16) == 2);
 static_assert(std::is_trivially_copyable_v<BeU32> && sizeof(BeU32) == 4);
@@ -52,10 +39,10 @@ static_assert(std::is_trivially_copyable_v<BeU64> && sizeof(BeU64) == 8);
  */
 #pragma pack(push, 1)
 struct MessageHeader {
-    char message_type;         // Offset 0, len 1: message type identifier
-    BeU16 stock_locate;        // Offset 1, len 2
-    BeU16 tracking_number;     // Offset 3, len 2: internal to NASDAQ
-    uint8_t timestamp[6];      // Offset 5, len 6: nanoseconds since midnight - see decode_itch_timestamp()
+    char message_type;      // Offset 0, len 1: message type identifier
+    BeU16 stock_locate;     // Offset 1, len 2
+    BeU16 tracking_number;  // Offset 3, len 2: internal to NASDAQ
+    uint8_t timestamp[6];   // Offset 5, len 6: nanoseconds since midnight - see decode_itch_timestamp()
 };
 #pragma pack(pop)
 
@@ -67,12 +54,8 @@ static_assert(sizeof(MessageHeader) == 11);
  * Six byte-loads + five OR-shifts - no branches, no memcpy.
  */
 [[nodiscard]] inline constexpr uint64_t decode_itch_timestamp(const uint8_t ts[6]) noexcept {
-    return static_cast<uint64_t>(ts[0]) << 40
-         | static_cast<uint64_t>(ts[1]) << 32
-         | static_cast<uint64_t>(ts[2]) << 24
-         | static_cast<uint64_t>(ts[3]) << 16
-         | static_cast<uint64_t>(ts[4]) <<  8
-         | static_cast<uint64_t>(ts[5]);
+    return static_cast<uint64_t>(ts[0]) << 40 | static_cast<uint64_t>(ts[1]) << 32 | static_cast<uint64_t>(ts[2]) << 24
+         | static_cast<uint64_t>(ts[3]) << 16 | static_cast<uint64_t>(ts[4]) << 8 | static_cast<uint64_t>(ts[5]);
 }
 
 enum class EventCode : char {
@@ -136,11 +119,7 @@ enum class FSI : char {
 /*
  * Yes / No indicator
  */
-enum class YesNo : char {
-    YES = 'Y',
-    NO = 'N',
-    NOT_AVAILABLE = ' '
-};
+enum class YesNo : char { YES = 'Y', NO = 'N', NOT_AVAILABLE = ' ' };
 
 /*
  * Appendix D - Issue Classification Values
@@ -169,64 +148,64 @@ enum class IssueClassification : char {
  * Wire format: 2 bytes, right-padded with space for single-character codes.
  */
 enum class IssueSubTypeCode : uint8_t {
-    PREFERRED_TRUST_SECURITIES,              // A
-    ALPHA_INDEX_ETN,                         // AI
-    INDEX_BASED_DERIVATIVE,                  // B
-    COMMON_SHARES,                           // C
-    COMMODITY_BASED_TRUST_SHARES,            // CB
-    COMMODITY_FUTURES_TRUST_SHARES,          // CF
-    COMMODITY_LINKED_SECURITIES,             // CL
-    COMMODITY_INDEX_TRUST_SHARES,            // CM
-    COLLATERALIZED_MORTGAGE_OBLIGATION,      // CO
-    CURRENCY_TRUST_SHARES,                   // CT
-    COMMODITY_CURRENCY_LINKED_SECURITIES,    // CU
-    CURRENCY_WARRANTS,                       // CW
-    GLOBAL_DEPOSITARY_SHARES,                // D
-    ETF_PORTFOLIO_DEPOSITARY_RECEIPT,        // E
-    EQUITY_GOLD_SHARES,                      // EG
-    ETN_EQUITY_INDEX_LINKED_SECURITIES,      // EI
-    NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND, // EM
-    EXCHANGE_TRADED_NOTES,                   // EN
-    EQUITY_UNITS,                            // EU
-    HOLDRS,                                  // F
-    ETN_FIXED_INCOME_LINKED_SECURITIES,      // FI
-    ETN_FUTURES_LINKED_SECURITIES,           // FL
-    GLOBAL_SHARES,                           // G
-    ETF_INDEX_FUND_SHARES,                   // I
-    INTEREST_RATE,                           // IR
-    INDEX_WARRANT,                           // IW
-    INDEX_LINKED_EXCHANGEABLE_NOTES,         // IX
-    CORPORATE_BACKED_TRUST_SECURITY,         // J
-    CONTINGENT_LITIGATION_RIGHT,             // L
-    LIMITED_LIABILITY_COMPANY,               // LL
-    EQUITY_BASED_DERIVATIVE,                 // M
-    MANAGED_FUND_SHARES,                     // MF
-    ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES,// ML
-    MANAGED_TRUST_SECURITIES,                // MT
-    NY_REGISTRY_SHARES,                      // N
-    OPEN_ENDED_MUTUAL_FUND,                  // O
-    PRIVATELY_HELD_SECURITY,                 // P
-    POISON_PILL,                             // PP
-    PARTNERSHIP_UNITS,                       // PU
-    CLOSED_END_FUNDS,                        // Q
-    REG_S,                                   // R
-    COMMODITY_REDEEMABLE_COMMODITY_LINKED,   // RC
-    ETN_REDEEMABLE_FUTURES_LINKED,           // RF
-    REIT,                                    // RT
-    COMMODITY_REDEEMABLE_CURRENCY_LINKED,    // RU
-    SEED,                                    // S
-    SPOT_RATE_CLOSING,                       // SC
-    SPOT_RATE_INTRADAY,                      // SI
-    TRACKING_STOCK,                          // T
-    TRUST_CERTIFICATES,                      // TC
-    TRUST_UNITS,                             // TU
-    PORTAL,                                  // U
-    CONTINGENT_VALUE_RIGHT,                  // V
-    TRUST_ISSUED_RECEIPTS,                   // W
-    WORLD_CURRENCY_OPTION,                   // WC
-    TRUST,                                   // X
-    OTHER,                                   // Y
-    NOT_APPLICABLE,                          // Z
+    PREFERRED_TRUST_SECURITIES,                // A
+    ALPHA_INDEX_ETN,                           // AI
+    INDEX_BASED_DERIVATIVE,                    // B
+    COMMON_SHARES,                             // C
+    COMMODITY_BASED_TRUST_SHARES,              // CB
+    COMMODITY_FUTURES_TRUST_SHARES,            // CF
+    COMMODITY_LINKED_SECURITIES,               // CL
+    COMMODITY_INDEX_TRUST_SHARES,              // CM
+    COLLATERALIZED_MORTGAGE_OBLIGATION,        // CO
+    CURRENCY_TRUST_SHARES,                     // CT
+    COMMODITY_CURRENCY_LINKED_SECURITIES,      // CU
+    CURRENCY_WARRANTS,                         // CW
+    GLOBAL_DEPOSITARY_SHARES,                  // D
+    ETF_PORTFOLIO_DEPOSITARY_RECEIPT,          // E
+    EQUITY_GOLD_SHARES,                        // EG
+    ETN_EQUITY_INDEX_LINKED_SECURITIES,        // EI
+    NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND,   // EM
+    EXCHANGE_TRADED_NOTES,                     // EN
+    EQUITY_UNITS,                              // EU
+    HOLDRS,                                    // F
+    ETN_FIXED_INCOME_LINKED_SECURITIES,        // FI
+    ETN_FUTURES_LINKED_SECURITIES,             // FL
+    GLOBAL_SHARES,                             // G
+    ETF_INDEX_FUND_SHARES,                     // I
+    INTEREST_RATE,                             // IR
+    INDEX_WARRANT,                             // IW
+    INDEX_LINKED_EXCHANGEABLE_NOTES,           // IX
+    CORPORATE_BACKED_TRUST_SECURITY,           // J
+    CONTINGENT_LITIGATION_RIGHT,               // L
+    LIMITED_LIABILITY_COMPANY,                 // LL
+    EQUITY_BASED_DERIVATIVE,                   // M
+    MANAGED_FUND_SHARES,                       // MF
+    ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES,  // ML
+    MANAGED_TRUST_SECURITIES,                  // MT
+    NY_REGISTRY_SHARES,                        // N
+    OPEN_ENDED_MUTUAL_FUND,                    // O
+    PRIVATELY_HELD_SECURITY,                   // P
+    POISON_PILL,                               // PP
+    PARTNERSHIP_UNITS,                         // PU
+    CLOSED_END_FUNDS,                          // Q
+    REG_S,                                     // R
+    COMMODITY_REDEEMABLE_COMMODITY_LINKED,     // RC
+    ETN_REDEEMABLE_FUTURES_LINKED,             // RF
+    REIT,                                      // RT
+    COMMODITY_REDEEMABLE_CURRENCY_LINKED,      // RU
+    SEED,                                      // S
+    SPOT_RATE_CLOSING,                         // SC
+    SPOT_RATE_INTRADAY,                        // SI
+    TRACKING_STOCK,                            // T
+    TRUST_CERTIFICATES,                        // TC
+    TRUST_UNITS,                               // TU
+    PORTAL,                                    // U
+    CONTINGENT_VALUE_RIGHT,                    // V
+    TRUST_ISSUED_RECEIPTS,                     // W
+    WORLD_CURRENCY_OPTION,                     // WC
+    TRUST,                                     // X
+    OTHER,                                     // Y
+    NOT_APPLICABLE,                            // Z
     COUNT
 };
 
@@ -235,115 +214,107 @@ enum class IssueSubTypeCode : uint8_t {
  */
 struct IssueSubType {
     char code[2];
-    constexpr IssueSubType(char c0, char c1) : code{c0, c1} {}
+    constexpr IssueSubType(char c0, char c1) : code{c0, c1} {
+    }
 };
 static_assert(std::is_trivially_copyable_v<IssueSubType>);
 static_assert(sizeof(IssueSubType) == 2);
 
 constexpr IssueSubType issue_sub_type_table[] = {
-    {'A', ' '},  // PREFERRED_TRUST_SECURITIES
-    {'A', 'I'},  // ALPHA_INDEX_ETN
-    {'B', ' '},  // INDEX_BASED_DERIVATIVE
-    {'C', ' '},  // COMMON_SHARES
-    {'C', 'B'},  // COMMODITY_BASED_TRUST_SHARES
-    {'C', 'F'},  // COMMODITY_FUTURES_TRUST_SHARES
-    {'C', 'L'},  // COMMODITY_LINKED_SECURITIES
-    {'C', 'M'},  // COMMODITY_INDEX_TRUST_SHARES
-    {'C', 'O'},  // COLLATERALIZED_MORTGAGE_OBLIGATION
-    {'C', 'T'},  // CURRENCY_TRUST_SHARES
-    {'C', 'U'},  // COMMODITY_CURRENCY_LINKED_SECURITIES
-    {'C', 'W'},  // CURRENCY_WARRANTS
-    {'D', ' '},  // GLOBAL_DEPOSITARY_SHARES
-    {'E', ' '},  // ETF_PORTFOLIO_DEPOSITARY_RECEIPT
-    {'E', 'G'},  // EQUITY_GOLD_SHARES
-    {'E', 'I'},  // ETN_EQUITY_INDEX_LINKED_SECURITIES
-    {'E', 'M'},  // NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND
-    {'E', 'N'},  // EXCHANGE_TRADED_NOTES
-    {'E', 'U'},  // EQUITY_UNITS
-    {'F', ' '},  // HOLDRS
-    {'F', 'I'},  // ETN_FIXED_INCOME_LINKED_SECURITIES
-    {'F', 'L'},  // ETN_FUTURES_LINKED_SECURITIES
-    {'G', ' '},  // GLOBAL_SHARES
-    {'I', ' '},  // ETF_INDEX_FUND_SHARES
-    {'I', 'R'},  // INTEREST_RATE
-    {'I', 'W'},  // INDEX_WARRANT
-    {'I', 'X'},  // INDEX_LINKED_EXCHANGEABLE_NOTES
-    {'J', ' '},  // CORPORATE_BACKED_TRUST_SECURITY
-    {'L', ' '},  // CONTINGENT_LITIGATION_RIGHT
-    {'L', 'L'},  // LIMITED_LIABILITY_COMPANY
-    {'M', ' '},  // EQUITY_BASED_DERIVATIVE
-    {'M', 'F'},  // MANAGED_FUND_SHARES
-    {'M', 'L'},  // ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES
-    {'M', 'T'},  // MANAGED_TRUST_SECURITIES
-    {'N', ' '},  // NY_REGISTRY_SHARES
-    {'O', ' '},  // OPEN_ENDED_MUTUAL_FUND
-    {'P', ' '},  // PRIVATELY_HELD_SECURITY
-    {'P', 'P'},  // POISON_PILL
-    {'P', 'U'},  // PARTNERSHIP_UNITS
-    {'Q', ' '},  // CLOSED_END_FUNDS
-    {'R', ' '},  // REG_S
-    {'R', 'C'},  // COMMODITY_REDEEMABLE_COMMODITY_LINKED
-    {'R', 'F'},  // ETN_REDEEMABLE_FUTURES_LINKED
-    {'R', 'T'},  // REIT
-    {'R', 'U'},  // COMMODITY_REDEEMABLE_CURRENCY_LINKED
-    {'S', ' '},  // SEED
-    {'S', 'C'},  // SPOT_RATE_CLOSING
-    {'S', 'I'},  // SPOT_RATE_INTRADAY
-    {'T', ' '},  // TRACKING_STOCK
-    {'T', 'C'},  // TRUST_CERTIFICATES
-    {'T', 'U'},  // TRUST_UNITS
-    {'U', ' '},  // PORTAL
-    {'V', ' '},  // CONTINGENT_VALUE_RIGHT
-    {'W', ' '},  // TRUST_ISSUED_RECEIPTS
-    {'W', 'C'},  // WORLD_CURRENCY_OPTION
-    {'X', ' '},  // TRUST
-    {'Y', ' '},  // OTHER
-    {'Z', ' '},  // NOT_APPLICABLE
+     {'A', ' '},  // PREFERRED_TRUST_SECURITIES
+     {'A', 'I'},  // ALPHA_INDEX_ETN
+     {'B', ' '},  // INDEX_BASED_DERIVATIVE
+     {'C', ' '},  // COMMON_SHARES
+     {'C', 'B'},  // COMMODITY_BASED_TRUST_SHARES
+     {'C', 'F'},  // COMMODITY_FUTURES_TRUST_SHARES
+     {'C', 'L'},  // COMMODITY_LINKED_SECURITIES
+     {'C', 'M'},  // COMMODITY_INDEX_TRUST_SHARES
+     {'C', 'O'},  // COLLATERALIZED_MORTGAGE_OBLIGATION
+     {'C', 'T'},  // CURRENCY_TRUST_SHARES
+     {'C', 'U'},  // COMMODITY_CURRENCY_LINKED_SECURITIES
+     {'C', 'W'},  // CURRENCY_WARRANTS
+     {'D', ' '},  // GLOBAL_DEPOSITARY_SHARES
+     {'E', ' '},  // ETF_PORTFOLIO_DEPOSITARY_RECEIPT
+     {'E', 'G'},  // EQUITY_GOLD_SHARES
+     {'E', 'I'},  // ETN_EQUITY_INDEX_LINKED_SECURITIES
+     {'E', 'M'},  // NEXTSHARES_EXCHANGE_TRADED_MANAGED_FUND
+     {'E', 'N'},  // EXCHANGE_TRADED_NOTES
+     {'E', 'U'},  // EQUITY_UNITS
+     {'F', ' '},  // HOLDRS
+     {'F', 'I'},  // ETN_FIXED_INCOME_LINKED_SECURITIES
+     {'F', 'L'},  // ETN_FUTURES_LINKED_SECURITIES
+     {'G', ' '},  // GLOBAL_SHARES
+     {'I', ' '},  // ETF_INDEX_FUND_SHARES
+     {'I', 'R'},  // INTEREST_RATE
+     {'I', 'W'},  // INDEX_WARRANT
+     {'I', 'X'},  // INDEX_LINKED_EXCHANGEABLE_NOTES
+     {'J', ' '},  // CORPORATE_BACKED_TRUST_SECURITY
+     {'L', ' '},  // CONTINGENT_LITIGATION_RIGHT
+     {'L', 'L'},  // LIMITED_LIABILITY_COMPANY
+     {'M', ' '},  // EQUITY_BASED_DERIVATIVE
+     {'M', 'F'},  // MANAGED_FUND_SHARES
+     {'M', 'L'},  // ETN_MULTI_FACTOR_INDEX_LINKED_SECURITIES
+     {'M', 'T'},  // MANAGED_TRUST_SECURITIES
+     {'N', ' '},  // NY_REGISTRY_SHARES
+     {'O', ' '},  // OPEN_ENDED_MUTUAL_FUND
+     {'P', ' '},  // PRIVATELY_HELD_SECURITY
+     {'P', 'P'},  // POISON_PILL
+     {'P', 'U'},  // PARTNERSHIP_UNITS
+     {'Q', ' '},  // CLOSED_END_FUNDS
+     {'R', ' '},  // REG_S
+     {'R', 'C'},  // COMMODITY_REDEEMABLE_COMMODITY_LINKED
+     {'R', 'F'},  // ETN_REDEEMABLE_FUTURES_LINKED
+     {'R', 'T'},  // REIT
+     {'R', 'U'},  // COMMODITY_REDEEMABLE_CURRENCY_LINKED
+     {'S', ' '},  // SEED
+     {'S', 'C'},  // SPOT_RATE_CLOSING
+     {'S', 'I'},  // SPOT_RATE_INTRADAY
+     {'T', ' '},  // TRACKING_STOCK
+     {'T', 'C'},  // TRUST_CERTIFICATES
+     {'T', 'U'},  // TRUST_UNITS
+     {'U', ' '},  // PORTAL
+     {'V', ' '},  // CONTINGENT_VALUE_RIGHT
+     {'W', ' '},  // TRUST_ISSUED_RECEIPTS
+     {'W', 'C'},  // WORLD_CURRENCY_OPTION
+     {'X', ' '},  // TRUST
+     {'Y', ' '},  // OTHER
+     {'Z', ' '},  // NOT_APPLICABLE
 };
-static_assert(
-    static_cast<size_t>(IssueSubTypeCode::COUNT) == std::size(issue_sub_type_table)
-);
+static_assert(static_cast<size_t>(IssueSubTypeCode::COUNT) == std::size(issue_sub_type_table));
 
 /*
  * Denotes if an issue or quoting participant  record is set up in a NASDAQ production environment or test environment.
  */
-enum class Authenticity : char {
-    PRODUCTION = 'P',
-    TEST = 'T'
-};
+enum class Authenticity : char { PRODUCTION = 'P', TEST = 'T' };
 
 /*
  * Indicates the LULD reference price tier for a given issue.
  */
-enum class Tier : char {
-    TIER_1 = '1',
-    TIER_2 = '2',
-    NOT_APPLICABLE = ' '
-};
+enum class Tier : char { TIER_1 = '1', TIER_2 = '2', NOT_APPLICABLE = ' ' };
 
 /**
  * Stock Directory Message (Section 1.2.1) – Type 'R'
  */
 #pragma pack(push, 1)
 struct StockDirectoryMessage {
-    MessageHeader header;                       // Offsets 0–10
-    char stock[8];                              // Offset 11, len  8
-    MarketCategory market_category;             // Offset 19, len  1: see MarketCategory enum class
-    FSI financial_status_indicator;             // Offset 20, len  1: see FSI enum class
-    BeU32 round_lot_size;                       // Offset 21, len  4: number of shares in a round lot
-    YesNo round_lots_only;                      // Offset 25, len  1: Yes => Only round lots are allowed
-                                                //                    No => Odd and mixed lots are allowed
-    IssueClassification issue_classification;   // Offset 26, len  1: see IssueClassification enum class
-    IssueSubType issue_sub_type;                // Offset 27, len  2: see IssueSubTypeCode / issue_sub_type_table
-    Authenticity authenticity;                  // Offset 29, len  1: see Authenticity enum class
-    YesNo short_sale_threshold_indicator;       // Offset 30, len  1: Yes => Restricted under SEC Rule 203(b)(3)
-                                                //                    No => Not restricted
-    YesNo ipo_flag;                             // Offset 31, len  1: Yes => New IPO, No => Not new
-    Tier luld_reference_price_tier;             // Offset 32, len  1: see Tier enum class
-    YesNo etp_flag;                             // Offset 33, len  1: Yes => ETP, No => Not ETP
-    BeU32 etp_leverage_factor;                  // Offset 34, len  4: integral relationship of the ETP to the
-                                                //                    underlying index (rounded to the nearest int)
-    YesNo inverse_indicator;                    // Offset 38, len  1: Yes => Inverse, No => Not Inverse
+    MessageHeader header;                      // Offsets 0–10
+    char stock[8];                             // Offset 11, len  8
+    MarketCategory market_category;            // Offset 19, len  1: see MarketCategory enum class
+    FSI financial_status_indicator;            // Offset 20, len  1: see FSI enum class
+    BeU32 round_lot_size;                      // Offset 21, len  4: number of shares in a round lot
+    YesNo round_lots_only;                     // Offset 25, len  1: Yes => Only round lots are allowed
+                                               //                    No => Odd and mixed lots are allowed
+    IssueClassification issue_classification;  // Offset 26, len  1: see IssueClassification enum class
+    IssueSubType issue_sub_type;               // Offset 27, len  2: see IssueSubTypeCode / issue_sub_type_table
+    Authenticity authenticity;                 // Offset 29, len  1: see Authenticity enum class
+    YesNo short_sale_threshold_indicator;      // Offset 30, len  1: Yes => Restricted under SEC Rule 203(b)(3)
+                                               //                    No => Not restricted
+    YesNo ipo_flag;                            // Offset 31, len  1: Yes => New IPO, No => Not new
+    Tier luld_reference_price_tier;            // Offset 32, len  1: see Tier enum class
+    YesNo etp_flag;                            // Offset 33, len  1: Yes => ETP, No => Not ETP
+    BeU32 etp_leverage_factor;                 // Offset 34, len  4: integral relationship of the ETP to the
+                                               //                    underlying index (rounded to the nearest int)
+    YesNo inverse_indicator;                   // Offset 38, len  1: Yes => Inverse, No => Not Inverse
 };
 #pragma pack(pop)
 
@@ -353,12 +324,7 @@ static_assert(sizeof(StockDirectoryMessage) == 39);
 /*
  * Indicates the current trading state of a stock.
  */
-enum class TradingState : char {
-    HALTED = 'H',
-    PAUSED = 'P',
-    QUOTATION_ONLY = 'Q',
-    TRADING = 'T'
-};
+enum class TradingState : char { HALTED = 'H', PAUSED = 'P', QUOTATION_ONLY = 'Q', TRADING = 'T' };
 
 /*
  * Trading Action Reason Codes - Appendix C
@@ -390,12 +356,12 @@ enum class TradingActionReason : char {
 struct Reason {
     char code[4];  // 4-char alpha code indicating the reason for a trading action
 
-    constexpr Reason(char c0, char c1, char c2, char c3) : code{c0, c1, c2, c3} {}
+    constexpr Reason(char c0, char c1, char c2, char c3) : code{c0, c1, c2, c3} {
+    }
 
     // We need this for hashmap lookup and testing equality in unit tests.
     constexpr bool operator==(const Reason& o) const noexcept {
-        return code[0] == o.code[0] && code[1] == o.code[1]
-            && code[2] == o.code[2] && code[3] == o.code[3];
+        return code[0] == o.code[0] && code[1] == o.code[1] && code[2] == o.code[2] && code[3] == o.code[3];
     }
 
     // We need convert all 4 bytes into a uint32_t to add as our hasmap key
@@ -411,80 +377,58 @@ static_assert(sizeof(Reason) == 4);
 
 // Compile-time helper: pack the 4-char reason code we receive into a uint32_t switch case.
 constexpr uint32_t pack_reason(char c0, char c1, char c2, char c3) noexcept {
-    return   static_cast<uint32_t>(static_cast<uint8_t>(c0))
-          | (static_cast<uint32_t>(static_cast<uint8_t>(c1)) <<  8)
-          | (static_cast<uint32_t>(static_cast<uint8_t>(c2)) << 16)
-          | (static_cast<uint32_t>(static_cast<uint8_t>(c3)) << 24);
+    return static_cast<uint32_t>(static_cast<uint8_t>(c0)) | (static_cast<uint32_t>(static_cast<uint8_t>(c1)) << 8)
+         | (static_cast<uint32_t>(static_cast<uint8_t>(c2)) << 16)
+         | (static_cast<uint32_t>(static_cast<uint8_t>(c3)) << 24);
 }
 
 constexpr Reason reason_table[] = {
-    {'T','1',' ',' '},
-    {'T','2',' ',' '},
-    {'T','5',' ',' '},
-    {'T','6',' ',' '},
-    {'T','8',' ',' '},
-    {'T','1','2',' '},
-    {'H','4',' ',' '},
-    {'H','9',' ',' '},
-    {'H','1','0',' '},
-    {'H','1','1',' '},
-    {'O','1',' ',' '},
-    {'L','U','D','P'},
-    {'L','U','D','S'},
-    {'M','W','C','1'},
-    {'M','W','C','2'},
-    {'M','W','C','3'},
-    {'M','W','C','0'},
-    {'I','P','O','1'},
-    {'M','1',' ',' '},
-    {'M','2',' ',' '},
-    {' ',' ',' ',' '}
-};
-static_assert(
-    static_cast<size_t>(TradingActionReason::COUNT) == std::size(reason_table)
-);
+     {'T', '1', ' ', ' '}, {'T', '2', ' ', ' '}, {'T', '5', ' ', ' '}, {'T', '6', ' ', ' '}, {'T', '8', ' ', ' '},
+     {'T', '1', '2', ' '}, {'H', '4', ' ', ' '}, {'H', '9', ' ', ' '}, {'H', '1', '0', ' '}, {'H', '1', '1', ' '},
+     {'O', '1', ' ', ' '}, {'L', 'U', 'D', 'P'}, {'L', 'U', 'D', 'S'}, {'M', 'W', 'C', '1'}, {'M', 'W', 'C', '2'},
+     {'M', 'W', 'C', '3'}, {'M', 'W', 'C', '0'}, {'I', 'P', 'O', '1'}, {'M', '1', ' ', ' '}, {'M', '2', ' ', ' '},
+     {' ', ' ', ' ', ' '}};
+static_assert(static_cast<size_t>(TradingActionReason::COUNT) == std::size(reason_table));
 
 /*
  * Trading Resumption Reason Codes - Appendix C
  * Used in the Reason field of StockTradingActionMessage when TradingState is TRADING or QUOTATION_ONLY.
  */
 enum class TradingResumptionReason : uint8_t {
-    NEWS_AND_RESUMPTION_TIMES,                          // T3
-    SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY,       // T7
-    QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED,            // R4
-    FILING_REQUIREMENTS_SATISFIED_RESOLVED,             // R9
-    ISSUER_NEWS_NOT_FORTHCOMING,                        // C3
-    QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET,          // C4
-    QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET,          // C9
-    TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY, // C11
-    MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION,             // MWCQ
-    NEW_ISSUE_AVAILABLE,                                // R1
-    ISSUE_AVAILABLE,                                    // R2
-    IPO_SECURITY_RELEASED_FOR_QUOTATION,                // IPOQ
-    IPO_SECURITY_POSITIONING_WINDOW_EXTENSION,          // IPOE
-    REASON_NOT_AVAILABLE,                               // (space)
+    NEWS_AND_RESUMPTION_TIMES,                           // T3
+    SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY,        // T7
+    QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED,             // R4
+    FILING_REQUIREMENTS_SATISFIED_RESOLVED,              // R9
+    ISSUER_NEWS_NOT_FORTHCOMING,                         // C3
+    QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET,           // C4
+    QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET,           // C9
+    TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY,  // C11
+    MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION,              // MWCQ
+    NEW_ISSUE_AVAILABLE,                                 // R1
+    ISSUE_AVAILABLE,                                     // R2
+    IPO_SECURITY_RELEASED_FOR_QUOTATION,                 // IPOQ
+    IPO_SECURITY_POSITIONING_WINDOW_EXTENSION,           // IPOE
+    REASON_NOT_AVAILABLE,                                // (space)
     COUNT
 };
 
 constexpr Reason resumption_reason_table[] = {
-    {'T','3',' ',' '},  // NEWS_AND_RESUMPTION_TIMES
-    {'T','7',' ',' '},  // SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY
-    {'R','4',' ',' '},  // QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED
-    {'R','9',' ',' '},  // FILING_REQUIREMENTS_SATISFIED_RESOLVED
-    {'C','3',' ',' '},  // ISSUER_NEWS_NOT_FORTHCOMING
-    {'C','4',' ',' '},  // QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET
-    {'C','9',' ',' '},  // QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET
-    {'C','1','1',' '},  // TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY
-    {'M','W','C','Q'},  // MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION
-    {'R','1',' ',' '},  // NEW_ISSUE_AVAILABLE
-    {'R','2',' ',' '},  // ISSUE_AVAILABLE
-    {'I','P','O','Q'},  // IPO_SECURITY_RELEASED_FOR_QUOTATION
-    {'I','P','O','E'},  // IPO_SECURITY_POSITIONING_WINDOW_EXTENSION
-    {' ',' ',' ',' '},  // REASON_NOT_AVAILABLE
+     {'T', '3', ' ', ' '},  // NEWS_AND_RESUMPTION_TIMES
+     {'T', '7', ' ', ' '},  // SINGLE_SECURITY_TRADING_PAUSE_QUOTATION_ONLY
+     {'R', '4', ' ', ' '},  // QUALIFICATIONS_ISSUES_REVIEWED_RESOLVED
+     {'R', '9', ' ', ' '},  // FILING_REQUIREMENTS_SATISFIED_RESOLVED
+     {'C', '3', ' ', ' '},  // ISSUER_NEWS_NOT_FORTHCOMING
+     {'C', '4', ' ', ' '},  // QUALIFICATIONS_HALT_ENDED_MAINTENANCE_MET
+     {'C', '9', ' ', ' '},  // QUALIFICATIONS_HALT_CONCLUDED_FILINGS_MET
+     {'C', '1', '1', ' '},  // TRADE_HALT_CONCLUDED_BY_OTHER_REGULATORY_AUTHORITY
+     {'M', 'W', 'C', 'Q'},  // MARKET_WIDE_CIRCUIT_BREAKER_RESUMPTION
+     {'R', '1', ' ', ' '},  // NEW_ISSUE_AVAILABLE
+     {'R', '2', ' ', ' '},  // ISSUE_AVAILABLE
+     {'I', 'P', 'O', 'Q'},  // IPO_SECURITY_RELEASED_FOR_QUOTATION
+     {'I', 'P', 'O', 'E'},  // IPO_SECURITY_POSITIONING_WINDOW_EXTENSION
+     {' ', ' ', ' ', ' '},  // REASON_NOT_AVAILABLE
 };
-static_assert(
-    static_cast<size_t>(TradingResumptionReason::COUNT) == std::size(resumption_reason_table)
-);
+static_assert(static_cast<size_t>(TradingResumptionReason::COUNT) == std::size(resumption_reason_table));
 
 // ============================================================================
 // Reason code decode functions -> see include/protocols/itch/ITCHDecoder.hpp
@@ -527,18 +471,9 @@ struct RegSHOShortSalePriceTestRestrictedMessage {
 static_assert(std::is_trivially_copyable_v<RegSHOShortSalePriceTestRestrictedMessage>);
 static_assert(sizeof(RegSHOShortSalePriceTestRestrictedMessage) == 20);
 
-enum class IsPrimary : char {
-    PRIMARY = 'Y',
-    NON_PRIMARY = 'N'
-};
+enum class IsPrimary : char { PRIMARY = 'Y', NON_PRIMARY = 'N' };
 
-enum class MarketMakerMode : char {
-    NORMAL = 'N',
-    PASSIVE = 'P',
-    SYNDICATE = 'S',
-    PRE_SYNDICATE = 'R',
-    PENALTY = 'L'
-};
+enum class MarketMakerMode : char { NORMAL = 'N', PASSIVE = 'P', SYNDICATE = 'S', PRE_SYNDICATE = 'R', PENALTY = 'L' };
 
 enum class MarketParticipantState : char {
     ACTIVE = 'A',
@@ -580,7 +515,9 @@ struct Price {
     T raw;  // Raw big-endian bytes as received on the wire
 
     // Returns the native-endian integer price ticks (use on performance-sensitive path).
-    [[nodiscard]] constexpr auto native() const noexcept { return raw.get(); }
+    [[nodiscard]] constexpr auto native() const noexcept {
+        return raw.get();
+    }
 
     // Convert price ticks to double (used for logging only).
     [[nodiscard]] double to_double() const noexcept {
@@ -597,8 +534,8 @@ static_assert(std::is_trivially_copyable_v<Price<BeU64, 8>>);
 static_assert(sizeof(Price<BeU32, 4>) == sizeof(uint32_t));
 static_assert(sizeof(Price<BeU64, 8>) == sizeof(uint64_t));
 
-using Price4 = Price<BeU32, 4>;   // price × 10'000
-using Price8 = Price<BeU64, 8>;   // price × 100'000'000
+using Price4 = Price<BeU32, 4>;  // price × 10'000
+using Price8 = Price<BeU64, 8>;  // price × 100'000'000
 
 /**
  * MWCB Decline Level Message (Section 1.2.5.1) – Type 'V'
@@ -638,12 +575,12 @@ enum class IPOQuotationReleaseQualifier : char { ANTICIPATED = 'A', IPO_CANCELLE
  */
 #pragma pack(push, 1)
 struct IPOQuotingPeriodUpdateMessage {
-    MessageHeader header;                 // Offsets 0–10
-    char stock[8];                        // Offset 11, len 8
-    BeU32 ipo_quotation_release_time;     // Offset 19, len 4: seconds since midnight
-    IPOQuotationReleaseQualifier
-        ipo_quotation_release_qualifier;  // Offset 23, len 1: see IPOQuotationReleaseQualifier enum class
-    Price4 ipo_price;                     // Offset 24, len 4: Price 4
+    MessageHeader header;                                          // Offsets 0–10
+    char stock[8];                                                 // Offset 11, len 8
+    BeU32 ipo_quotation_release_time;                              // Offset 19, len 4: seconds since midnight
+    IPOQuotationReleaseQualifier ipo_quotation_release_qualifier;  // Offset 23, len 1:
+                                                                   // see IPOQuotationReleaseQualifier enum class
+    Price4 ipo_price;                                              // Offset 24, len 4: Price 4
 };
 #pragma pack(pop)
 
@@ -739,10 +676,10 @@ static_assert(sizeof(AddOrderWithMPIDMessage) == 40);
  */
 #pragma pack(push, 1)
 struct OrderExecutedMessage {
-    MessageHeader header;      // Offsets 0–10
-    BeU64 order_reference;     // Offset 11, len 8
-    BeU32 executed_shares;     // Offset 19, len 4
-    BeU64 match_number;        // Offset 23, len 8: unique match identifier
+    MessageHeader header;   // Offsets 0–10
+    BeU64 order_reference;  // Offset 11, len 8
+    BeU32 executed_shares;  // Offset 19, len 4
+    BeU64 match_number;     // Offset 23, len 8: unique match identifier
 };
 #pragma pack(pop)
 
@@ -756,12 +693,12 @@ enum class Printable : char { PRINTABLE = 'Y', NON_PRINTABLE = 'N' };
  */
 #pragma pack(push, 1)
 struct OrderExecutedWithPriceMessage {
-    MessageHeader header;      // Offsets 0–10
-    BeU64 order_reference;     // Offset 11, len 8
-    BeU32 executed_shares;     // Offset 19, len 4
-    BeU64 match_number;        // Offset 23, len 8
-    Printable printable;       // Offset 31, len 1: see Printable enum class
-    Price4 execution_price;    // Offset 32, len 4: Price4
+    MessageHeader header;    // Offsets 0–10
+    BeU64 order_reference;   // Offset 11, len 8
+    BeU32 executed_shares;   // Offset 19, len 4
+    BeU64 match_number;      // Offset 23, len 8
+    Printable printable;     // Offset 31, len 1: see Printable enum class
+    Price4 execution_price;  // Offset 32, len 4: Price4
 };
 #pragma pack(pop)
 
@@ -774,9 +711,9 @@ static_assert(sizeof(OrderExecutedWithPriceMessage) == 36);
  */
 #pragma pack(push, 1)
 struct OrderCancelMessage {
-    MessageHeader header;       // Offsets 0–10
-    BeU64 order_reference;      // Offset 11, len 8
-    BeU32 cancelled_shares;     // Offset 19, len 4: number of shares removed
+    MessageHeader header;    // Offsets 0–10
+    BeU64 order_reference;   // Offset 11, len 8
+    BeU32 cancelled_shares;  // Offset 19, len 4: number of shares removed
 };
 #pragma pack(pop)
 
@@ -789,8 +726,8 @@ static_assert(sizeof(OrderCancelMessage) == 23);
  */
 #pragma pack(push, 1)
 struct OrderDeleteMessage {
-    MessageHeader header;      // Offsets 0–10
-    BeU64 order_reference;     // Offset 11, len 8
+    MessageHeader header;   // Offsets 0–10
+    BeU64 order_reference;  // Offset 11, len 8
 };
 #pragma pack(pop)
 
@@ -804,11 +741,11 @@ static_assert(sizeof(OrderDeleteMessage) == 19);
  */
 #pragma pack(push, 1)
 struct OrderReplaceMessage {
-    MessageHeader header;               // Offsets 0–10
-    BeU64 original_order_reference;     // Offset 11, len 8: reference of the order being replaced
-    BeU64 new_order_reference;          // Offset 19, len 8: reference of the replacement order
-    BeU32 shares;                       // Offset 27, len 4: new total display quantity
-    Price4 price;                       // Offset 31, len 4: Price4
+    MessageHeader header;            // Offsets 0–10
+    BeU64 original_order_reference;  // Offset 11, len 8: reference of the order being replaced
+    BeU64 new_order_reference;       // Offset 19, len 8: reference of the replacement order
+    BeU32 shares;                    // Offset 27, len 4: new total display quantity
+    Price4 price;                    // Offset 31, len 4: Price4
 };
 #pragma pack(pop)
 
@@ -846,12 +783,12 @@ enum class CrossType : char { OPENING = 'O', CLOSING = 'C', IPO_HALTED = 'H', EX
  */
 #pragma pack(push, 1)
 struct CrossTradeMessage {
-    MessageHeader header;   // Offsets 0–10
-    BeU64 shares;           // Offset 11, len 8: number of shares matched in the cross
-    char stock[8];          // Offset 19, len 8
-    Price4 cross_price;     // Offset 27, len 4: Price4
-    BeU64 match_number;     // Offset 31, len 8
-    CrossType cross_type;   // Offset 39, len 1: see CrossType enum class
+    MessageHeader header;  // Offsets 0–10
+    BeU64 shares;          // Offset 11, len 8: number of shares matched in the cross
+    char stock[8];         // Offset 19, len 8
+    Price4 cross_price;    // Offset 27, len 4: Price4
+    BeU64 match_number;    // Offset 31, len 8
+    CrossType cross_type;  // Offset 39, len 1: see CrossType enum class
 };
 #pragma pack(pop)
 
@@ -864,8 +801,8 @@ static_assert(sizeof(CrossTradeMessage) == 40);
  */
 #pragma pack(push, 1)
 struct BrokenTradeMessage {
-    MessageHeader header;   // Offsets 0–10
-    BeU64 match_number;     // Offset 11, len 8: match number of the trade being broken
+    MessageHeader header;  // Offsets 0–10
+    BeU64 match_number;    // Offset 11, len 8: match number of the trade being broken
 };
 #pragma pack(pop)
 
@@ -893,7 +830,13 @@ enum class PriceVariationIndicator : char {
     CANNOT_BE_CALCULATED = ' '
 };
 
-enum class ImbalanceDirection : char { BUY = 'B', SELL = 'S', NO_IMBALANCE = 'N', INSUFFICIENT_ORDERS = 'O', PAUSED = 'P' };
+enum class ImbalanceDirection : char {
+    BUY = 'B',
+    SELL = 'S',
+    NO_IMBALANCE = 'N',
+    INSUFFICIENT_ORDERS = 'O',
+    PAUSED = 'P'
+};
 
 /**
  * NOII Message (Section 1.6) – Type 'I'
@@ -903,8 +846,10 @@ enum class ImbalanceDirection : char { BUY = 'B', SELL = 'S', NO_IMBALANCE = 'N'
 #pragma pack(push, 1)
 struct NOIIMessage {
     MessageHeader header;                               // Offsets 0–10
-    BeU64 paired_shares;                                // Offset 11, len  8: shares eligible to be matched at Current Reference Price
-    BeU64 imbalance_shares;                             // Offset 19, len  8: shares not paired at Current Reference Price
+    BeU64 paired_shares;                                // Offset 11, len  8: shares eligible to be matched at Current
+                                                        //                    Reference Price
+    BeU64 imbalance_shares;                             // Offset 19, len  8: shares not paired at Current Reference
+                                                        //                    Price
     ImbalanceDirection imbalance_direction;             // Offset 27, len  1: see ImbalanceDirection enum class
     char stock[8];                                      // Offset 28, len  8
     Price4 far_price;                                   // Offset 36, len  4: Price4
@@ -938,16 +883,11 @@ struct RPIIMessage {
 static_assert(std::is_trivially_copyable_v<RPIIMessage>);
 static_assert(sizeof(RPIIMessage) == 20);
 
-// ============================================================================
-// Direct Listing with Capital Raise Price Discovery Message (Section 1.8)
-// ============================================================================
-
-enum class OpenEligibilityStatus : char { NOT_ELIGIBLE = 'N', ELIGIBLE = 'Y' };
-
-/**
- * Direct Listing with Capital Raise Price Discovery Message (Section 1.8) – Type 'O'
- * Disseminated once per second after the DLCR volatility test has successfully passed.
+/*
+ * Indicates whether an ETP is eligible to open via DLCR price discovery.
  */
+enum class OpenEligibilityStatus : char { OPEN_ELIGIBLE = 'Y', NOT_OPEN_ELIGIBLE = 'N' };
+
 #pragma pack(push, 1)
 struct DLCRPriceDiscoveryMessage {
     MessageHeader header;                           // Offsets 0–10
@@ -955,10 +895,13 @@ struct DLCRPriceDiscoveryMessage {
     OpenEligibilityStatus open_eligibility_status;  // Offset 19, len 1: see OpenEligibilityStatus enum class
     Price4 minimum_allowable_price;                 // Offset 20, len 4: 20% below Registration Statement Lower Price
     Price4 maximum_allowable_price;                 // Offset 24, len 4: 80% above Registration Statement Highest Price
-    Price4 near_execution_price;                    // Offset 28, len 4: current reference price when DLCR volatility test passed
+    Price4 near_execution_price;                    // Offset 28, len 4: current reference price when DLCR volatility
+                                                    //                   test passed
     BeU64 near_execution_time;                      // Offset 32, len 8: time at which near execution price was set
-    Price4 lower_price_range_collar;                // Offset 40, len 4: Lower Auction Collar Threshold (10% below near execution price)
-    Price4 upper_price_range_collar;                // Offset 44, len 4: Upper Auction Collar Threshold (10% above near execution price)
+    Price4 lower_price_range_collar;                // Offset 40, len 4: Lower Auction Collar Threshold
+                                                    //                   (10% below near execution price)
+    Price4 upper_price_range_collar;                // Offset 44, len 4: Upper Auction Collar Threshold
+                                                    //                   (10% above near execution price)
 };
 #pragma pack(pop)
 
@@ -969,4 +912,4 @@ static_assert(sizeof(DLCRPriceDiscoveryMessage) == 48);
 // All messages must be trivially copyable for zero-copy parsing
 // ============================================================================
 
-}  // namespace ullfh::protocols::itch
+};  // namespace ullfh::protocols::itch
