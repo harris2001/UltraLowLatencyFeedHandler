@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
+#include <iterator>
 
 namespace ullfh::protocols::itch {
 
@@ -280,7 +282,7 @@ constexpr IssueSubType issue_sub_type_table[] = {
      {'Y', ' '},  // OTHER
      {'Z', ' '},  // NOT_APPLICABLE
 };
-static_assert(static_cast<size_t>(IssueSubTypeCode::COUNT) == std::size(issue_sub_type_table));
+static_assert(static_cast<std::size_t>(IssueSubTypeCode::COUNT) == std::size(issue_sub_type_table));
 
 /*
  * Denotes if an issue or quoting participant  record is set up in a NASDAQ production environment or test environment.
@@ -428,7 +430,7 @@ constexpr Reason resumption_reason_table[] = {
      {'I', 'P', 'O', 'E'},  // IPO_SECURITY_POSITIONING_WINDOW_EXTENSION
      {' ', ' ', ' ', ' '},  // REASON_NOT_AVAILABLE
 };
-static_assert(static_cast<size_t>(TradingResumptionReason::COUNT) == std::size(resumption_reason_table));
+static_assert(static_cast<std::size_t>(TradingResumptionReason::COUNT) == std::size(resumption_reason_table));
 
 // ============================================================================
 // Reason code decode functions -> see include/protocols/itch/ITCHDecoder.hpp
