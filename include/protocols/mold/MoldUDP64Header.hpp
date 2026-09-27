@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "protocols/itch/ITCHMessages.hpp"
+#include "../itch/ITCHMessages.hpp"
 
 namespace ullfh::protocols::mold {
 

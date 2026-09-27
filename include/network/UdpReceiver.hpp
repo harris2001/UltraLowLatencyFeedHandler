@@ -3,8 +3,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include "network/Receiver.hpp"
-#include "network/SocketConfig.hpp"
+#include "Receiver.hpp"
+#include "SocketConfig.hpp"
 
 namespace ullfh::network {
 

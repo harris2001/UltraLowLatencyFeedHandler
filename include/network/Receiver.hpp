@@ -2,7 +2,7 @@
 
 #include <sys/socket.h>
 
-#include "network/SocketConfig.hpp"
+#include "SocketConfig.hpp"
 
 namespace ullfh::network {
 

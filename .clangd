@@ -1,2 +1,4 @@
 CompileFlags:
   CompilationDatabase: build
+  Remove: [-std=*]
+  Add: [-std=c++20]
