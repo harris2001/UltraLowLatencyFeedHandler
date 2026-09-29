@@ -1,7 +1,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "core/Logger.hpp"
+#include "../include/core/Logger.hpp"
 
 #define VERSION "0.1"
 
